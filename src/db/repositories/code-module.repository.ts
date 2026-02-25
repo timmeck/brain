@@ -18,6 +18,7 @@ export class CodeModuleRepository {
       delete: db.prepare('DELETE FROM code_modules WHERE id = ?'),
       findByFingerprint: db.prepare('SELECT * FROM code_modules WHERE fingerprint = ?'),
       findByProject: db.prepare('SELECT * FROM code_modules WHERE project_id = ? ORDER BY name ASC'),
+      countAll: db.prepare('SELECT COUNT(*) as count FROM code_modules'),
       search: db.prepare(`
         SELECT cm.* FROM code_modules cm
         JOIN code_modules_fts fts ON cm.id = fts.rowid
@@ -71,5 +72,9 @@ export class CodeModuleRepository {
 
   search(query: string): CodeModuleRecord[] {
     return this.stmts.search.all(query) as CodeModuleRecord[];
+  }
+
+  countAll(): number {
+    return (this.stmts.countAll.get() as { count: number }).count;
   }
 }

@@ -50,7 +50,9 @@ export class AnalyticsService {
       ? this.antipatternRepo.findByProject(projectId)
       : this.antipatternRepo.findGlobal();
 
-    const modules = projectId ? this.codeModuleRepo.findByProject(projectId) : [];
+    const moduleCount = projectId
+      ? this.codeModuleRepo.findByProject(projectId).length
+      : this.codeModuleRepo.countAll();
     const insights = this.insightRepo.findActive(projectId);
 
     return {
@@ -62,7 +64,7 @@ export class AnalyticsService {
       solutions: { total: 0 }, // solutions are global, not per-project
       rules: { active: rules.length },
       antipatterns: { total: antipatterns.length },
-      modules: { total: modules.length },
+      modules: { total: moduleCount },
       insights: { active: insights.length },
     };
   }
