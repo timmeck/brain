@@ -5,10 +5,21 @@ import { wilsonScore } from './confidence-scorer.js';
  * Update confidence scores for all solutions based on their attempt history.
  */
 export function updateSolutionConfidences(solutionRepo: SolutionRepository): number {
-  // We can't iterate all solutions without a getAll method,
-  // so we update confidence when solutions are accessed/rated.
-  // This function is a placeholder for batch updates during learning cycles.
-  return 0;
+  const solutions = solutionRepo.getAll();
+  let updated = 0;
+
+  for (const sol of solutions) {
+    const total = sol.success_count + sol.fail_count;
+    if (total === 0) continue;
+
+    const newConfidence = wilsonScore(sol.success_count, total);
+    if (Math.abs(newConfidence - sol.confidence) > 0.001) {
+      solutionRepo.update(sol.id, { confidence: newConfidence });
+      updated++;
+    }
+  }
+
+  return updated;
 }
 
 /**

@@ -1,13 +1,31 @@
 {
   "name": "brain",
-  "version": "0.1.0",
-  "description": "Adaptive error memory and code intelligence system",
+  "version": "1.0.0",
+  "description": "Adaptive error memory and code intelligence system with Hebbian synapse network for Claude Code",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "brain": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "test": "vitest"
+  },
+  "keywords": [
+    "error-memory",
+    "code-intelligence",
+    "mcp",
+    "claude-code",
+    "hebbian-learning",
+    "synapse-network",
+    "adaptive-learning"
+  ],
+  "author": "Tim Mecklenburg",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/timmeck/brain"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",

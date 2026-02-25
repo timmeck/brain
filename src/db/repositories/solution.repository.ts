@@ -57,6 +57,9 @@ export class SolutionRepository {
       getAttempts: this.db.prepare(`
         SELECT * FROM solution_attempts WHERE error_solution_id = ? ORDER BY attempted_at DESC
       `),
+      getAll: this.db.prepare(`
+        SELECT * FROM solutions
+      `),
       successRate: this.db.prepare(`
         SELECT
           COUNT(*) as total,
@@ -137,6 +140,10 @@ export class SolutionRepository {
 
   getAttempts(errorSolutionId: number): SolutionAttempt[] {
     return this.stmts.getAttempts.all(errorSolutionId) as SolutionAttempt[];
+  }
+
+  getAll(): SolutionRecord[] {
+    return this.stmts.getAll.all() as SolutionRecord[];
   }
 
   successRate(solutionId: number): number {

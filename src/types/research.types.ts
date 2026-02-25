@@ -1,4 +1,4 @@
-export type InsightType = 'pattern' | 'correlation' | 'suggestion' | 'warning' | 'optimization';
+export type InsightType = 'pattern' | 'correlation' | 'suggestion' | 'warning' | 'optimization' | 'trend' | 'gap' | 'synergy' | 'template_candidate' | 'project_suggestion';
 
 export interface InsightRecord {
   id: number;

@@ -37,12 +37,12 @@ export function dashboardCommand(): Command {
         // Categorize insights
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const insightList = Array.isArray(insights) ? insights : [];
-        const templates = insightList.filter((i: { type: string }) => i.type === 'template_candidate' || i.title?.includes('Template'));
-        const suggestions = insightList.filter((i: { type: string }) => i.type === 'suggestion' || i.type === 'project_suggestion');
-        const trends = insightList.filter((i: { type: string }) => i.type === 'trend' || i.type === 'pattern');
-        const gaps = insightList.filter((i: { type: string }) => i.type === 'gap');
-        const warnings = insightList.filter((i: { type: string }) => i.type === 'warning');
-        const synergies = insightList.filter((i: { type: string }) => i.type === 'synergy' || i.type === 'optimization');
+        const templates = insightList.filter((i: InsightItem) => i.type === 'template_candidate' || i.title?.includes('Template'));
+        const suggestions = insightList.filter((i: InsightItem) => i.type === 'suggestion' || i.type === 'project_suggestion');
+        const trends = insightList.filter((i: InsightItem) => i.type === 'trend' || i.type === 'pattern');
+        const gaps = insightList.filter((i: InsightItem) => i.type === 'gap');
+        const warnings = insightList.filter((i: InsightItem) => i.type === 'warning');
+        const synergies = insightList.filter((i: InsightItem) => i.type === 'synergy' || i.type === 'optimization');
 
         const data = {
           stats: {
