@@ -30,6 +30,12 @@ Without Brain, Claude Code starts fresh every session. With Brain:
 ### Installation
 
 ```bash
+npm install -g @timmeck/brain
+```
+
+Or from source:
+
+```bash
 git clone https://github.com/timmeck/brain.git
 cd brain
 npm install
