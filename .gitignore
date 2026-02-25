@@ -5,3 +5,4 @@ data/
 *.log
 .env
 .mcp.json
+dashboard.html
