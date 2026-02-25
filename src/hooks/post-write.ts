@@ -29,6 +29,20 @@ function isSourceFile(filePath: string): boolean {
   return !IGNORE_PATHS.some(p => filePath.includes(p));
 }
 
+function detectProject(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/');
+  // Extract project name from path — look for common project root indicators
+  const parts = normalized.split('/');
+  // Find the directory just above src/, lib/, app/ etc., or use the parent of the file
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (['src', 'lib', 'app', 'components', 'pages', 'tests', 'test'].includes(parts[i]) && i > 0) {
+      return parts[i - 1];
+    }
+  }
+  // Fallback: use the directory two levels up from the file, or immediate parent
+  return parts[Math.max(parts.length - 3, 0)] || 'default';
+}
+
 function detectLanguage(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
   const map: Record<string, string> = {
@@ -80,6 +94,19 @@ async function main(): Promise<void> {
         process.stderr.write(`Brain: Very similar code exists (module #${best.moduleId}, ${Math.round(best.score * 100)}% match). Consider reusing.\n`);
       }
     }
+
+    // Auto-register the written file into Brain
+    const fileName = filePath.replace(/\\/g, '/').split('/').pop() ?? 'unknown';
+    const projectName = detectProject(filePath);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await client.request('code.analyze', {
+      project: projectName,
+      name: fileName,
+      filePath,
+      language: detectLanguage(filePath),
+      source: input.tool_input.content ?? '',
+    });
+    process.stderr.write(`Brain: Registered ${fileName} (score: ${result.reusabilityScore?.toFixed(2) ?? '?'}, ${result.isNew ? 'new' : 'updated'})\n`);
   } catch {
     // Hook must never block workflow
   } finally {
