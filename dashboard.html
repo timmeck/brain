@@ -1,897 +1,226 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Brain — Code Intelligence Dashboard</title>
+<title>Brain — Dashboard</title>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg:#07070d;--bg2:#0d0d18;--bg3:#131325;--bg4:#1a1a35;
     --text:#e0e0f0;--text2:#8888aa;--text3:#555577;
-    --blue:#4488ff;--blue2:#2266dd;--blue-glow:rgba(68,136,255,.15);
-    --red:#ff4466;--red2:#cc2244;--red-glow:rgba(255,68,102,.15);
-    --green:#44ff88;--green2:#22cc66;--green-glow:rgba(68,255,136,.15);
-    --purple:#aa66ff;--purple2:#8844dd;--purple-glow:rgba(170,102,255,.15);
-    --orange:#ffaa44;--orange2:#dd8822;--orange-glow:rgba(255,170,68,.15);
-    --cyan:#44ddff;--cyan2:#22bbdd;--cyan-glow:rgba(68,221,255,.15);
+    --blue:#4488ff;--red:#ff4466;--green:#44ff88;
+    --purple:#aa66ff;--orange:#ffaa44;--cyan:#44ddff;
     --radius:12px;--radius-sm:8px;
   }
   html{scroll-behavior:smooth}
-  body{
-    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
-    background:var(--bg);color:var(--text);line-height:1.6;
-    min-height:100vh;overflow-x:hidden;
-  }
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+  .container{max-width:1400px;margin:0 auto;padding:0 24px}
+  section{margin-bottom:48px}
 
-  /* === ANIMATED BACKGROUND === */
-  .bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  /* Header */
+  header{padding:40px 0 20px;text-align:center}
+  .logo{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:8px}
+  .logo-icon{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 0 40px rgba(170,102,255,.3)}
+  .logo h1{font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,#fff,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .tagline{color:var(--text2);font-size:1rem}
+  .generated{color:var(--text3);font-size:.75rem;margin-top:8px}
 
-  /* === LAYOUT === */
-  .container{max-width:1400px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
-  section{margin-bottom:64px}
-  .section-title{
-    font-size:1.5rem;font-weight:700;margin-bottom:24px;
-    display:flex;align-items:center;gap:12px;
-  }
-  .section-title .icon{font-size:1.3rem;width:36px;height:36px;border-radius:var(--radius-sm);
-    display:flex;align-items:center;justify-content:center;flex-shrink:0}
-
-  /* === HEADER === */
-  header{
-    padding:48px 0 32px;text-align:center;position:relative;z-index:1;
-  }
-  .logo{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:12px}
-  .logo-icon{
-    width:64px;height:64px;border-radius:16px;
-    background:linear-gradient(135deg,var(--purple),var(--blue));
-    display:flex;align-items:center;justify-content:center;font-size:32px;
-    box-shadow:0 0 40px rgba(170,102,255,.3),0 0 80px rgba(68,136,255,.15);
-    animation:pulse-glow 3s ease-in-out infinite alternate;
-  }
-  @keyframes pulse-glow{
-    0%{box-shadow:0 0 30px rgba(170,102,255,.25),0 0 60px rgba(68,136,255,.1)}
-    100%{box-shadow:0 0 50px rgba(170,102,255,.4),0 0 100px rgba(68,136,255,.2)}
-  }
-  .logo h1{font-size:2.4rem;font-weight:800;
-    background:linear-gradient(135deg,#fff,var(--blue),var(--purple));
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-    background-clip:text;
-  }
-  .tagline{color:var(--text2);font-size:1.1rem;max-width:600px;margin:0 auto}
-
-  /* === NAV === */
-  nav{
-    display:flex;justify-content:center;gap:8px;flex-wrap:wrap;
-    padding:16px 0 0;margin-bottom:48px;
-  }
-  nav a{
-    color:var(--text2);text-decoration:none;padding:6px 14px;border-radius:20px;
-    font-size:.85rem;transition:all .2s;border:1px solid transparent;
-  }
+  /* Nav */
+  nav{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:16px 0;margin-bottom:32px}
+  nav a{color:var(--text2);text-decoration:none;padding:6px 14px;border-radius:20px;font-size:.85rem;transition:all .2s;border:1px solid transparent}
   nav a:hover{color:var(--text);background:var(--bg3);border-color:var(--bg4)}
+  nav a.research{background:var(--bg3);color:var(--cyan);border-color:var(--cyan);font-weight:600;animation:research-pulse 2s ease-in-out infinite alternate}
+  @keyframes research-pulse{0%{box-shadow:0 0 8px rgba(68,221,255,.2)}100%{box-shadow:0 0 20px rgba(68,221,255,.4)}}
 
-  /* === STATS CARDS === */
-  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
-  .stat-card{
-    background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);
-    padding:28px 24px;text-align:center;position:relative;overflow:hidden;
-    transition:transform .2s,box-shadow .2s;
-  }
+  /* Stats */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+  .stat-card{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);padding:24px 20px;text-align:center;position:relative;overflow:hidden;transition:transform .2s}
   .stat-card:hover{transform:translateY(-2px)}
-  .stat-card::before{
-    content:'';position:absolute;top:0;left:0;right:0;height:3px;
-    border-radius:var(--radius) var(--radius) 0 0;
-  }
-  .stat-card.blue::before{background:linear-gradient(90deg,var(--blue),var(--cyan))}
-  .stat-card.blue:hover{box-shadow:0 8px 32px var(--blue-glow)}
-  .stat-card.purple::before{background:linear-gradient(90deg,var(--purple),var(--blue))}
-  .stat-card.purple:hover{box-shadow:0 8px 32px var(--purple-glow)}
-  .stat-card.orange::before{background:linear-gradient(90deg,var(--orange),var(--red))}
-  .stat-card.orange:hover{box-shadow:0 8px 32px var(--orange-glow)}
-  .stat-card.green::before{background:linear-gradient(90deg,var(--green),var(--cyan))}
-  .stat-card.green:hover{box-shadow:0 8px 32px var(--green-glow)}
-  .stat-card.red::before{background:linear-gradient(90deg,var(--red),var(--orange))}
-  .stat-card.red:hover{box-shadow:0 8px 32px var(--red-glow)}
-  .stat-card.cyan::before{background:linear-gradient(90deg,var(--cyan),var(--blue))}
-  .stat-card.cyan:hover{box-shadow:0 8px 32px var(--cyan-glow)}
-  .stat-number{font-size:2.4rem;font-weight:800;letter-spacing:-1px;margin-bottom:4px}
-  .stat-card.blue .stat-number{color:var(--blue)}
-  .stat-card.purple .stat-number{color:var(--purple)}
-  .stat-card.orange .stat-number{color:var(--orange)}
-  .stat-card.green .stat-number{color:var(--green)}
-  .stat-card.red .stat-number{color:var(--red)}
-  .stat-card.cyan .stat-number{color:var(--cyan)}
-  .stat-label{color:var(--text2);font-size:.9rem;font-weight:500}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .stat-card.blue::before{background:var(--blue)}.stat-card.purple::before{background:var(--purple)}
+  .stat-card.red::before{background:var(--red)}.stat-card.green::before{background:var(--green)}
+  .stat-card.orange::before{background:var(--orange)}.stat-card.cyan::before{background:var(--cyan)}
+  .stat-number{font-size:2.2rem;font-weight:800;letter-spacing:-1px}
+  .stat-card.blue .stat-number{color:var(--blue)}.stat-card.purple .stat-number{color:var(--purple)}
+  .stat-card.red .stat-number{color:var(--red)}.stat-card.green .stat-number{color:var(--green)}
+  .stat-card.orange .stat-number{color:var(--orange)}.stat-card.cyan .stat-number{color:var(--cyan)}
+  .stat-label{color:var(--text2);font-size:.85rem;margin-top:4px}
 
-  /* === ARCHITECTURE === */
-  .arch-container{position:relative}
-  .arch-grid{
-    display:grid;grid-template-columns:1fr 1fr;gap:24px;
-  }
-  @media(max-width:900px){.arch-grid{grid-template-columns:1fr}}
-  .arch-node{
-    background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);
-    padding:28px;position:relative;overflow:hidden;
-    transition:transform .2s,box-shadow .2s;
-  }
-  .arch-node:hover{transform:translateY(-2px)}
-  .arch-node h3{font-size:1.15rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px}
-  .arch-node p{color:var(--text2);font-size:.9rem;line-height:1.7}
-  .arch-node .node-icon{
-    width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-    font-size:20px;flex-shrink:0;
-  }
-  .arch-node.error-brain{border-left:3px solid var(--red)}
-  .arch-node.error-brain .node-icon{background:var(--red-glow);color:var(--red)}
-  .arch-node.error-brain:hover{box-shadow:0 8px 32px var(--red-glow)}
-  .arch-node.code-brain{border-left:3px solid var(--blue)}
-  .arch-node.code-brain .node-icon{background:var(--blue-glow);color:var(--blue)}
-  .arch-node.code-brain:hover{box-shadow:0 8px 32px var(--blue-glow)}
-  .arch-node.synapse-net{border-left:3px solid var(--purple)}
-  .arch-node.synapse-net .node-icon{background:var(--purple-glow);color:var(--purple)}
-  .arch-node.synapse-net:hover{box-shadow:0 8px 32px var(--purple-glow)}
-  .arch-node.research-eng{border-left:3px solid var(--cyan)}
-  .arch-node.research-eng .node-icon{background:var(--cyan-glow);color:var(--cyan)}
-  .arch-node.research-eng:hover{box-shadow:0 8px 32px var(--cyan-glow)}
-  .arch-node.learning-eng{border-left:3px solid var(--green)}
-  .arch-node.learning-eng .node-icon{background:var(--green-glow);color:var(--green)}
-  .arch-node.learning-eng:hover{box-shadow:0 8px 32px var(--green-glow)}
-  .arch-node.core-sys{border-left:3px solid var(--orange)}
-  .arch-node.core-sys .node-icon{background:var(--orange-glow);color:var(--orange)}
-  .arch-node.core-sys:hover{box-shadow:0 8px 32px var(--orange-glow)}
-  .arch-flow{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
-  .flow-step{
-    background:var(--bg3);border-radius:6px;padding:4px 10px;font-size:.78rem;color:var(--text);
-    display:flex;align-items:center;gap:4px;
-  }
-  .flow-arrow{color:var(--text3);font-size:.7rem}
+  /* Section titles */
+  .section-title{font-size:1.4rem;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+  .section-title .icon{font-size:1.2rem;width:34px;height:34px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center}
 
-  /* === SYNAPSE VISUALIZATION === */
-  .synapse-viz{
-    background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);
-    padding:0;margin-top:24px;overflow:hidden;position:relative;height:340px;
-  }
-  .synapse-canvas{width:100%;height:100%;display:block}
+  /* Language chart */
+  .lang-chart{max-width:600px}
+  .lang-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .lang-name{width:90px;text-align:right;font-size:.85rem;color:var(--text2);font-weight:500}
+  .lang-bar-bg{flex:1;height:24px;background:var(--bg3);border-radius:4px;overflow:hidden}
+  .lang-bar{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:4px;transition:width .5s ease}
+  .lang-count{width:50px;font-size:.85rem;color:var(--text2);font-weight:600}
 
-  /* === PROJECTS === */
-  .projects-grid{display:flex;flex-wrap:wrap;gap:10px}
-  .project-chip{
-    background:var(--bg2);border:1px solid var(--bg4);border-radius:20px;
-    padding:8px 16px;font-size:.85rem;color:var(--text);
-    transition:all .2s;cursor:default;display:flex;align-items:center;gap:6px;
-  }
-  .project-chip:hover{background:var(--bg3);border-color:var(--purple);color:var(--purple)}
-  .project-chip .dot{
-    width:8px;height:8px;border-radius:50%;flex-shrink:0;
-  }
+  /* Insight tabs */
+  .tab-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+  .tab-btn{padding:8px 18px;border-radius:20px;border:1px solid var(--bg4);background:var(--bg2);color:var(--text2);cursor:pointer;font-size:.85rem;transition:all .2s}
+  .tab-btn:hover{border-color:var(--text3);color:var(--text)}
+  .tab-btn.active{border-color:var(--cyan);color:var(--cyan);background:var(--bg3)}
+  .tab-btn .count{background:var(--bg4);padding:1px 7px;border-radius:10px;font-size:.75rem;margin-left:6px}
+  .tab-panel{display:none}.tab-panel.active{display:block}
+  .insight-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px}
+  .insight-card{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius-sm);padding:16px;border-left:3px solid var(--text3);transition:transform .15s}
+  .insight-card:hover{transform:translateX(4px)}
+  .insight-card.cyan{border-left-color:var(--cyan)}.insight-card.orange{border-left-color:var(--orange)}
+  .insight-card.green{border-left-color:var(--green)}.insight-card.red{border-left-color:var(--red)}
+  .insight-card.purple{border-left-color:var(--purple)}.insight-card.blue{border-left-color:var(--blue)}
+  .insight-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .insight-card p{color:var(--text2);font-size:.85rem}
+  .prio{font-size:.7rem;padding:2px 8px;border-radius:10px;text-transform:uppercase;font-weight:600}
+  .prio-critical{background:rgba(255,68,102,.2);color:var(--red)}
+  .prio-high{background:rgba(255,170,68,.2);color:var(--orange)}
+  .prio-medium{background:rgba(68,136,255,.2);color:var(--blue)}
+  .prio-low{background:rgba(136,136,170,.2);color:var(--text2)}
+  .empty{color:var(--text3);font-style:italic;padding:20px}
 
-  /* === DATA FLOW === */
-  .flow-diagram{
-    display:flex;flex-direction:column;gap:0;
-  }
-  .flow-row{
-    display:flex;align-items:center;gap:16px;padding:16px 0;
-    position:relative;
-  }
-  .flow-row:not(:last-child)::after{
-    content:'';position:absolute;left:23px;top:56px;bottom:-16px;
-    width:2px;background:linear-gradient(to bottom,var(--bg4),transparent);
-  }
-  .flow-num{
-    width:48px;height:48px;border-radius:50%;flex-shrink:0;
-    display:flex;align-items:center;justify-content:center;
-    font-weight:800;font-size:1.1rem;
-  }
-  .flow-content{flex:1}
-  .flow-content h4{font-size:1rem;font-weight:600;margin-bottom:4px}
-  .flow-content p{color:var(--text2);font-size:.85rem}
-  .flow-row:nth-child(1) .flow-num{background:var(--red-glow);color:var(--red);border:2px solid var(--red)}
-  .flow-row:nth-child(2) .flow-num{background:var(--blue-glow);color:var(--blue);border:2px solid var(--blue)}
-  .flow-row:nth-child(3) .flow-num{background:var(--purple-glow);color:var(--purple);border:2px solid var(--purple)}
-  .flow-row:nth-child(4) .flow-num{background:var(--green-glow);color:var(--green);border:2px solid var(--green)}
-  .flow-row:nth-child(5) .flow-num{background:var(--cyan-glow);color:var(--cyan);border:2px solid var(--cyan)}
-  .flow-row:nth-child(6) .flow-num{background:var(--orange-glow);color:var(--orange);border:2px solid var(--orange)}
-
-  /* === CLI + MCP === */
-  .cmd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
-  .cmd-card{
-    background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);
-    padding:20px;transition:all .2s;
-  }
-  .cmd-card:hover{border-color:var(--bg4);background:var(--bg3)}
-  .cmd-card .cmd{
-    font-family:'Cascadia Code','Fira Code',monospace;font-size:.85rem;
-    color:var(--green);background:var(--bg);border-radius:6px;padding:8px 12px;
-    margin-bottom:10px;display:block;word-break:break-all;
-  }
-  .cmd-card .desc{color:var(--text2);font-size:.83rem;line-height:1.5}
-
-  .mcp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
-  .mcp-tool{
-    background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius-sm);
-    padding:16px 18px;transition:all .2s;
-  }
-  .mcp-tool:hover{border-color:var(--purple);background:var(--bg3)}
-  .mcp-tool .tool-name{
-    font-family:'Cascadia Code','Fira Code',monospace;font-size:.82rem;
-    color:var(--purple);margin-bottom:6px;font-weight:600;
-  }
-  .mcp-tool .tool-desc{color:var(--text2);font-size:.8rem;line-height:1.5}
-  .mcp-tool .tool-category{
-    display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:10px;
-    margin-bottom:8px;font-weight:600;
-  }
-  .mcp-tool .tool-category.error{background:var(--red-glow);color:var(--red)}
-  .mcp-tool .tool-category.code{background:var(--blue-glow);color:var(--blue)}
-  .mcp-tool .tool-category.synapse{background:var(--purple-glow);color:var(--purple)}
-  .mcp-tool .tool-category.research{background:var(--cyan-glow);color:var(--cyan)}
-  .mcp-tool .tool-category.system{background:var(--orange-glow);color:var(--orange)}
-
-  /* === TECH STACK === */
-  .tech-grid{display:flex;flex-wrap:wrap;gap:10px}
-  .tech-badge{
-    background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;
-    padding:10px 16px;font-size:.82rem;display:flex;align-items:center;gap:8px;
-    transition:all .2s;
-  }
-  .tech-badge:hover{background:var(--bg3);border-color:var(--blue)}
-  .tech-badge .t-icon{font-size:1rem}
-
-  /* === FOOTER === */
-  footer{
-    text-align:center;padding:48px 0 32px;color:var(--text3);font-size:.82rem;
-    border-top:1px solid var(--bg3);
-  }
-  footer a{color:var(--blue);text-decoration:none}
-  footer a:hover{text-decoration:underline}
-
-  /* === ANIMATIONS === */
-  @keyframes fade-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-  .animate{animation:fade-up .5s ease-out both}
-  .animate:nth-child(1){animation-delay:.05s}
-  .animate:nth-child(2){animation-delay:.1s}
-  .animate:nth-child(3){animation-delay:.15s}
-  .animate:nth-child(4){animation-delay:.2s}
-  .animate:nth-child(5){animation-delay:.25s}
-  .animate:nth-child(6){animation-delay:.3s}
-
-  /* === RESPONSIVE === */
-  @media(max-width:700px){
-    header{padding:32px 0 24px}
-    .logo h1{font-size:1.8rem}
-    .logo-icon{width:48px;height:48px;font-size:24px;border-radius:12px}
-    .stat-number{font-size:1.8rem}
-    .cmd-grid{grid-template-columns:1fr}
-    .mcp-grid{grid-template-columns:1fr}
-    nav{gap:4px}
-    nav a{padding:4px 10px;font-size:.8rem}
-  }
+  /* Responsive */
+  @media(max-width:600px){.stats-grid{grid-template-columns:1fr 1fr}.insight-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-
-<canvas class="bg-canvas" id="bgCanvas"></canvas>
-
 <div class="container">
-
-  <!-- HEADER -->
   <header>
     <div class="logo">
       <div class="logo-icon">&#129504;</div>
       <h1>Brain</h1>
     </div>
-    <p class="tagline">Adaptive Error Memory & Code Intelligence System — cross-project learning that remembers every error, solution, and reusable pattern.</p>
-    <nav>
-      <a href="#stats">Stats</a>
-      <a href="#architecture">Architecture</a>
-      <a href="#synapses">Synapses</a>
-      <a href="#projects">Projects</a>
-      <a href="#flow">How It Works</a>
-      <a href="#cli">CLI</a>
-      <a href="#mcp">MCP Tools</a>
-      <a href="#tech">Stack</a>
-    </nav>
+    <p class="tagline">Adaptive Code Intelligence Dashboard</p>
+    <p class="generated">Generiert: 25.2.2026, 20:17:54</p>
   </header>
 
-  <!-- STATS -->
+  <nav>
+    <a href="#stats">Stats</a>
+    <a href="#languages">Sprachen</a>
+    <a href="#research" class="research">&#128300; Forscher</a>
+  </nav>
+
   <section id="stats">
-    <div class="section-title">
-      <span class="icon" style="background:var(--orange-glow);color:var(--orange)">&#9635;</span>
-      System Overview
-    </div>
+    <div class="section-title"><div class="icon" style="background:rgba(68,136,255,.15)">&#128202;</div> Status</div>
     <div class="stats-grid">
-      <div class="stat-card blue animate">
-        <div class="stat-number" data-count="18138">0</div>
-        <div class="stat-label">Code Modules</div>
-      </div>
-      <div class="stat-card purple animate">
-        <div class="stat-number" data-count="37215">0</div>
-        <div class="stat-label">Synapse Connections</div>
-      </div>
-      <div class="stat-card orange animate">
-        <div class="stat-number" data-count="33">0</div>
-        <div class="stat-label">Projects</div>
-      </div>
-      <div class="stat-card green animate">
-        <div class="stat-number" data-raw="19.3 MB">0</div>
-        <div class="stat-label">Database Size</div>
-      </div>
-      <div class="stat-card red animate">
-        <div class="stat-number" data-count="0">0</div>
-        <div class="stat-label">Errors Tracked</div>
-      </div>
-      <div class="stat-card cyan animate">
-        <div class="stat-number" data-count="98">0</div>
-        <div class="stat-label">Source Files</div>
-      </div>
+      <div class="stat-card blue"><div class="stat-number">18.138</div><div class="stat-label">Code Module</div></div>
+      <div class="stat-card purple"><div class="stat-number">37.215</div><div class="stat-label">Synapsen</div></div>
+      <div class="stat-card cyan"><div class="stat-number">258</div><div class="stat-label">Insights</div></div>
+      <div class="stat-card red"><div class="stat-number">0</div><div class="stat-label">Fehler</div></div>
+      <div class="stat-card green"><div class="stat-number">0</div><div class="stat-label">Lösungen</div></div>
+      <div class="stat-card orange"><div class="stat-number">0</div><div class="stat-label">Regeln</div></div>
     </div>
   </section>
 
-  <!-- ARCHITECTURE -->
-  <section id="architecture">
-    <div class="section-title">
-      <span class="icon" style="background:var(--blue-glow);color:var(--blue)">&#9881;</span>
-      Architecture
-    </div>
-    <div class="arch-grid">
-      <div class="arch-node error-brain animate">
-        <h3><span class="node-icon">&#9888;</span> Error Brain</h3>
-        <p>Detects, parses, fingerprints, and matches errors across 7 language parsers. When an error occurs, Brain searches for known solutions and suggests fixes automatically.</p>
-        <div class="arch-flow">
-          <span class="flow-step">Error Detection</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Parsing (7 langs)</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Fingerprinting</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Matching</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Solutions</span>
-        </div>
-      </div>
-      <div class="arch-node code-brain animate">
-        <h3><span class="node-icon">&#128196;</span> Code Brain</h3>
-        <p>Analyzes source code from all projects, extracts structural fingerprints, detects exports/imports, and scores reusability. Finds similar code across your entire codebase.</p>
-        <div class="arch-flow">
-          <span class="flow-step">Code Analysis</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Fingerprinting</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Similarity</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Reusability Score</span>
-        </div>
-      </div>
-      <div class="arch-node synapse-net animate">
-        <h3><span class="node-icon">&#9733;</span> Synapse Network</h3>
-        <p>37,215 Hebbian-learned connections between errors, solutions, code modules, and projects. Spreading activation finds related knowledge. Connections strengthen with use and decay over time.</p>
-        <div class="arch-flow">
-          <span class="flow-step">Hebbian Learning</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Activation Spread</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Pathfinding</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Decay</span>
-        </div>
-      </div>
-      <div class="arch-node research-eng animate">
-        <h3><span class="node-icon">&#128270;</span> Research Engine</h3>
-        <p>Discovers trends, identifies knowledge gaps, finds cross-project synergies, extracts reusable templates, and generates actionable insights.</p>
-        <div class="arch-flow">
-          <span class="flow-step">Trends</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Gaps</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Synergies</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Templates</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Insights</span>
-        </div>
-      </div>
-      <div class="arch-node learning-eng animate">
-        <h3><span class="node-icon">&#127891;</span> Learning Engine</h3>
-        <p>Wilson-score confidence on solutions, temporal decay for freshness, centroid clustering for pattern extraction, and automatic rule generation from repeated fixes.</p>
-        <div class="arch-flow">
-          <span class="flow-step">Confidence (Wilson)</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Patterns (Centroid)</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Rules</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Prevention</span>
-        </div>
-      </div>
-      <div class="arch-node core-sys animate">
-        <h3><span class="node-icon">&#128313;</span> Core System</h3>
-        <p>SQLite with WAL mode, FTS5 full-text search, Named Pipe IPC, MCP tool server, event bus, CLI with 9 commands, and the BrainCore orchestrator.</p>
-        <div class="arch-flow">
-          <span class="flow-step">SQLite + FTS5</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">Named Pipe IPC</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">MCP Server</span>
-          <span class="flow-arrow">&#10132;</span>
-          <span class="flow-step">CLI</span>
-        </div>
-      </div>
-    </div>
+  <section id="languages">
+    <div class="section-title"><div class="icon" style="background:rgba(170,102,255,.15)">&#128187;</div> Sprachen</div>
+    <div class="lang-chart"></div>
   </section>
 
-  <!-- SYNAPSE VISUALIZATION -->
-  <section id="synapses">
-    <div class="section-title">
-      <span class="icon" style="background:var(--purple-glow);color:var(--purple)">&#10023;</span>
-      Synapse Network — Live Visualization
+  <section id="research">
+    <div class="section-title"><div class="icon" style="background:rgba(68,221,255,.15)">&#128300;</div> Forscher — Research Insights</div>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="templates">&#127912; Templates <span class="count">258</span></button>
+      <button class="tab-btn" data-tab="suggestions">&#128161; Vorschläge <span class="count">258</span></button>
+      <button class="tab-btn" data-tab="trends">&#128200; Trends <span class="count">0</span></button>
+      <button class="tab-btn" data-tab="gaps">&#9888;&#65039; Lücken <span class="count">0</span></button>
+      <button class="tab-btn" data-tab="synergies">&#9889; Synergien <span class="count">0</span></button>
+      <button class="tab-btn" data-tab="warnings">&#128680; Warnungen <span class="count">0</span></button>
     </div>
-    <div class="synapse-viz">
-      <canvas class="synapse-canvas" id="synapseCanvas"></canvas>
-    </div>
-    <p style="color:var(--text3);font-size:.8rem;margin-top:10px;text-align:center">
-      Simulated visualization of the synapse network. Nodes represent projects, errors, code modules, and solutions.
-      Lines show Hebbian connections. Brightness represents connection strength.
-    </p>
+    <div class="tab-panel active" id="tab-templates"><div class="insight-grid"><div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: alert.tsx</strong></div><p>&quot;alert.tsx&quot; exists in 4 projects as adaptations (avg reusability 52%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: button.tsx</strong></div><p>&quot;button.tsx&quot; exists in 8 projects as adaptations (avg reusability 71%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: config.py</strong></div><p>&quot;config.py&quot; exists in 5 projects as adaptations (avg reusability 74%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: footer.tsx</strong></div><p>&quot;footer.tsx&quot; exists in 8 projects as adaptations (avg reusability 78%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: index.ts</strong></div><p>&quot;index.ts&quot; exists in 12 projects as adaptations (avg reusability 63%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: input.tsx</strong></div><p>&quot;input.tsx&quot; exists in 7 projects as adaptations (avg reusability 64%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: layout.tsx</strong></div><p>&quot;layout.tsx&quot; exists in 12 projects as adaptations (avg reusability 77%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: main.py</strong></div><p>&quot;main.py&quot; exists in 4 projects as adaptations (avg reusability 81%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: page.tsx</strong></div><p>&quot;page.tsx&quot; exists in 12 projects as adaptations (avg reusability 77%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: postcss.config.js</strong></div><p>&quot;postcss.config.js&quot; exists in 4 projects as adaptations (avg reusability 53%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: route.ts</strong></div><p>&quot;route.ts&quot; exists in 11 projects as adaptations (avg reusability 76%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: run.py</strong></div><p>&quot;run.py&quot; exists in 4 projects as adaptations (avg reusability 76%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: sidebar.tsx</strong></div><p>&quot;sidebar.tsx&quot; exists in 4 projects as adaptations (avg reusability 81%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: tailwind.config.js</strong></div><p>&quot;tailwind.config.js&quot; exists in 4 projects as adaptations (avg reusability 56%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: use-debounce.ts</strong></div><p>&quot;use-debounce.ts&quot; exists in 4 projects as adaptations (avg reusability 87%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: use-local-storage.ts</strong></div><p>&quot;use-local-storage.ts&quot; exists in 4 projects as adaptations (avg reusability 74%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: use-media-query.ts</strong></div><p>&quot;use-media-query.ts&quot; exists in 4 projects as adaptations (avg reusability 81%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: auth.ts</strong></div><p>&quot;auth.ts&quot; exists in 7 projects as adaptations (avg reusability 67%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: badge.tsx</strong></div><p>&quot;badge.tsx&quot; exists in 5 projects as adaptations (avg reusability 75%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: client.ts</strong></div><p>&quot;client.ts&quot; exists in 6 projects as adaptations (avg reusability 69%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: db.ts</strong></div><p>&quot;db.ts&quot; exists in 4 projects as adaptations (avg reusability 73%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: error.tsx</strong></div><p>&quot;error.tsx&quot; exists in 4 projects as adaptations (avg reusability 71%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: not-found.tsx</strong></div><p>&quot;not-found.tsx&quot; exists in 4 projects as adaptations (avg reusability 76%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: select.tsx</strong></div><p>&quot;select.tsx&quot; exists in 5 projects as adaptations (avg reusability 54%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: textarea.tsx</strong></div><p>&quot;textarea.tsx&quot; exists in 4 projects as adaptations (avg reusability 63%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: utils.ts</strong></div><p>&quot;utils.ts&quot; exists in 7 projects as adaptations (avg reusability 75%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: middleware.ts</strong></div><p>&quot;middleware.ts&quot; exists in 5 projects as adaptations (avg reusability 78%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: providers.tsx</strong></div><p>&quot;providers.tsx&quot; exists in 5 projects as adaptations (avg reusability 80%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: progress.tsx</strong></div><p>&quot;progress.tsx&quot; exists in 4 projects as adaptations (avg reusability 52%). Generalize into parameterized template.</p></div>
+<div class="insight-card cyan"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: tailwind.config.ts</strong></div><p>&quot;tailwind.config.ts&quot; exists in 4 projects as adaptations (avg reusability 88%). Generalize into parameterized template.</p></div></div></div>
+    <div class="tab-panel" id="tab-suggestions"><div class="insight-grid"><div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: alert.tsx</strong></div><p>&quot;alert.tsx&quot; exists in 4 projects as adaptations (avg reusability 52%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: button.tsx</strong></div><p>&quot;button.tsx&quot; exists in 8 projects as adaptations (avg reusability 71%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: config.py</strong></div><p>&quot;config.py&quot; exists in 5 projects as adaptations (avg reusability 74%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: footer.tsx</strong></div><p>&quot;footer.tsx&quot; exists in 8 projects as adaptations (avg reusability 78%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: index.ts</strong></div><p>&quot;index.ts&quot; exists in 12 projects as adaptations (avg reusability 63%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: input.tsx</strong></div><p>&quot;input.tsx&quot; exists in 7 projects as adaptations (avg reusability 64%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: layout.tsx</strong></div><p>&quot;layout.tsx&quot; exists in 12 projects as adaptations (avg reusability 77%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: main.py</strong></div><p>&quot;main.py&quot; exists in 4 projects as adaptations (avg reusability 81%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: page.tsx</strong></div><p>&quot;page.tsx&quot; exists in 12 projects as adaptations (avg reusability 77%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: postcss.config.js</strong></div><p>&quot;postcss.config.js&quot; exists in 4 projects as adaptations (avg reusability 53%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: route.ts</strong></div><p>&quot;route.ts&quot; exists in 11 projects as adaptations (avg reusability 76%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: run.py</strong></div><p>&quot;run.py&quot; exists in 4 projects as adaptations (avg reusability 76%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: sidebar.tsx</strong></div><p>&quot;sidebar.tsx&quot; exists in 4 projects as adaptations (avg reusability 81%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: tailwind.config.js</strong></div><p>&quot;tailwind.config.js&quot; exists in 4 projects as adaptations (avg reusability 56%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: use-debounce.ts</strong></div><p>&quot;use-debounce.ts&quot; exists in 4 projects as adaptations (avg reusability 87%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: use-local-storage.ts</strong></div><p>&quot;use-local-storage.ts&quot; exists in 4 projects as adaptations (avg reusability 74%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: use-media-query.ts</strong></div><p>&quot;use-media-query.ts&quot; exists in 4 projects as adaptations (avg reusability 81%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: auth.ts</strong></div><p>&quot;auth.ts&quot; exists in 7 projects as adaptations (avg reusability 67%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: badge.tsx</strong></div><p>&quot;badge.tsx&quot; exists in 5 projects as adaptations (avg reusability 75%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: client.ts</strong></div><p>&quot;client.ts&quot; exists in 6 projects as adaptations (avg reusability 69%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: db.ts</strong></div><p>&quot;db.ts&quot; exists in 4 projects as adaptations (avg reusability 73%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: error.tsx</strong></div><p>&quot;error.tsx&quot; exists in 4 projects as adaptations (avg reusability 71%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: not-found.tsx</strong></div><p>&quot;not-found.tsx&quot; exists in 4 projects as adaptations (avg reusability 76%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: select.tsx</strong></div><p>&quot;select.tsx&quot; exists in 5 projects as adaptations (avg reusability 54%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: textarea.tsx</strong></div><p>&quot;textarea.tsx&quot; exists in 4 projects as adaptations (avg reusability 63%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: utils.ts</strong></div><p>&quot;utils.ts&quot; exists in 7 projects as adaptations (avg reusability 75%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: middleware.ts</strong></div><p>&quot;middleware.ts&quot; exists in 5 projects as adaptations (avg reusability 78%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: providers.tsx</strong></div><p>&quot;providers.tsx&quot; exists in 5 projects as adaptations (avg reusability 80%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: progress.tsx</strong></div><p>&quot;progress.tsx&quot; exists in 4 projects as adaptations (avg reusability 52%). Generalize into parameterized template.</p></div>
+<div class="insight-card orange"><div class="insight-header"><span class="prio prio-75">75</span><strong>Template candidate: tailwind.config.ts</strong></div><p>&quot;tailwind.config.ts&quot; exists in 4 projects as adaptations (avg reusability 88%). Generalize into parameterized template.</p></div></div></div>
+    <div class="tab-panel" id="tab-trends"><div class="insight-grid"><p class="empty">Keine Insights in dieser Kategorie.</p></div></div>
+    <div class="tab-panel" id="tab-gaps"><div class="insight-grid"><p class="empty">Keine Insights in dieser Kategorie.</p></div></div>
+    <div class="tab-panel" id="tab-synergies"><div class="insight-grid"><p class="empty">Keine Insights in dieser Kategorie.</p></div></div>
+    <div class="tab-panel" id="tab-warnings"><div class="insight-grid"><p class="empty">Keine Insights in dieser Kategorie.</p></div></div>
   </section>
 
-  <!-- PROJECTS -->
-  <section id="projects">
-    <div class="section-title">
-      <span class="icon" style="background:var(--green-glow);color:var(--green)">&#128194;</span>
-      33 Imported Projects
-    </div>
-    <div class="projects-grid" id="projectsGrid"></div>
-  </section>
-
-  <!-- HOW IT WORKS -->
-  <section id="flow">
-    <div class="section-title">
-      <span class="icon" style="background:var(--cyan-glow);color:var(--cyan)">&#128260;</span>
-      How It Works
-    </div>
-    <div class="flow-diagram">
-      <div class="flow-row animate">
-        <div class="flow-num">1</div>
-        <div class="flow-content">
-          <h4>Code Import &amp; Analysis</h4>
-          <p>Brain scans your projects and analyzes every source file. It extracts structural fingerprints, detects exports/imports, identifies the language, and scores each module for reusability across 6 signals.</p>
-        </div>
-      </div>
-      <div class="flow-row animate">
-        <div class="flow-num">2</div>
-        <div class="flow-content">
-          <h4>Error Detection &amp; Matching</h4>
-          <p>When an error occurs (via hooks or manual report), Brain parses it with language-specific parsers (Node, Python, Rust, Go, Shell, Compiler, Generic), creates a fingerprint, and matches against known errors using 6 weighted similarity signals.</p>
-        </div>
-      </div>
-      <div class="flow-row animate">
-        <div class="flow-num">3</div>
-        <div class="flow-content">
-          <h4>Synapse Formation</h4>
-          <p>Every connection (error-to-solution, code-to-code, project-to-module) creates a synapse. Connections strengthen through Hebbian learning ("neurons that fire together wire together") and weaken through temporal decay.</p>
-        </div>
-      </div>
-      <div class="flow-row animate">
-        <div class="flow-num">4</div>
-        <div class="flow-content">
-          <h4>Learning &amp; Confidence</h4>
-          <p>The learning engine tracks solution success rates using Wilson score intervals, clusters similar error patterns via centroid analysis, and automatically generates prevention rules when patterns stabilize.</p>
-        </div>
-      </div>
-      <div class="flow-row animate">
-        <div class="flow-num">5</div>
-        <div class="flow-content">
-          <h4>Research &amp; Insights</h4>
-          <p>The research engine continuously discovers trends in your errors, identifies knowledge gaps, finds cross-project synergies (shared patterns), extracts template candidates, and generates actionable project suggestions.</p>
-        </div>
-      </div>
-      <div class="flow-row animate">
-        <div class="flow-num">6</div>
-        <div class="flow-content">
-          <h4>Proactive Prevention</h4>
-          <p>Brain surfaces insights through MCP tools and notifications. Before you write code, it checks for similar existing solutions. Before you hit an error, it warns about known patterns. It gets smarter with every interaction.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CLI COMMANDS -->
-  <section id="cli">
-    <div class="section-title">
-      <span class="icon" style="background:var(--green-glow);color:var(--green)">&#9002;</span>
-      CLI Commands
-    </div>
-    <div class="cmd-grid">
-      <div class="cmd-card animate">
-        <code class="cmd">brain start</code>
-        <div class="desc">Start the Brain daemon. Initializes DB, runs migrations, opens IPC named pipe, registers MCP tools.</div>
-      </div>
-      <div class="cmd-card animate">
-        <code class="cmd">brain stop</code>
-        <div class="desc">Gracefully stop the Brain daemon.</div>
-      </div>
-      <div class="cmd-card animate">
-        <code class="cmd">brain status</code>
-        <div class="desc">Show current status: errors, solutions, modules, synapses, rules, insights.</div>
-      </div>
-      <div class="cmd-card animate">
-        <code class="cmd">brain query "error message"</code>
-        <div class="desc">Search for matching errors and solutions using full-text search + similarity matching.</div>
-      </div>
-      <div class="cmd-card animate">
-        <code class="cmd">brain modules [--project name]</code>
-        <div class="desc">List imported code modules. Filter by project to see what's been analyzed.</div>
-      </div>
-      <div class="cmd-card animate">
-        <code class="cmd">brain insights [--type trend]</code>
-        <div class="desc">View research insights: trends, gaps, synergies, templates, suggestions.</div>
-      </div>
-      <div class="cmd-card animate">
-        <code class="cmd">brain network [node-type] [id]</code>
-        <div class="desc">Explore the synapse network. Follow connections through spreading activation.</div>
-      </div>
-      <div class="cmd-card animate">
-        <code class="cmd">brain export [--format json]</code>
-        <div class="desc">Export Brain data for backup or analysis.</div>
-      </div>
-      <div class="cmd-card animate">
-        <code class="cmd">brain import &lt;project-dir&gt;</code>
-        <div class="desc">Import and analyze all source files from a project directory.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- MCP TOOLS -->
-  <section id="mcp">
-    <div class="section-title">
-      <span class="icon" style="background:var(--purple-glow);color:var(--purple)">&#128268;</span>
-      13 MCP Tools
-    </div>
-    <p style="color:var(--text2);margin-bottom:20px;font-size:.9rem">
-      Brain exposes these tools via the Model Context Protocol (MCP), allowing AI assistants like Claude to interact with the Brain system directly.
-    </p>
-    <div class="mcp-grid" id="mcpGrid"></div>
-  </section>
-
-  <!-- TECH STACK -->
-  <section id="tech">
-    <div class="section-title">
-      <span class="icon" style="background:var(--blue-glow);color:var(--blue)">&#128736;</span>
-      Technology Stack
-    </div>
-    <div class="tech-grid">
-      <div class="tech-badge"><span class="t-icon">&#9883;</span> TypeScript (strict)</div>
-      <div class="tech-badge"><span class="t-icon">&#9881;</span> Node.js v25.2.1</div>
-      <div class="tech-badge"><span class="t-icon">&#128451;</span> SQLite (better-sqlite3)</div>
-      <div class="tech-badge"><span class="t-icon">&#128269;</span> FTS5 Full-Text Search</div>
-      <div class="tech-badge"><span class="t-icon">&#128268;</span> MCP Protocol</div>
-      <div class="tech-badge"><span class="t-icon">&#128232;</span> Named Pipe IPC</div>
-      <div class="tech-badge"><span class="t-icon">&#128230;</span> ESM Modules</div>
-      <div class="tech-badge"><span class="t-icon">&#128203;</span> Zod Validation</div>
-      <div class="tech-badge"><span class="t-icon">&#128221;</span> Winston Logger</div>
-      <div class="tech-badge"><span class="t-icon">&#128296;</span> Commander CLI</div>
-      <div class="tech-badge"><span class="t-icon">&#128202;</span> TF-IDF Indexing</div>
-      <div class="tech-badge"><span class="t-icon">&#129520;</span> Hebbian Learning</div>
-      <div class="tech-badge"><span class="t-icon">&#128200;</span> Wilson Score</div>
-      <div class="tech-badge"><span class="t-icon">&#128300;</span> Cosine Similarity</div>
-      <div class="tech-badge"><span class="t-icon">&#129518;</span> Levenshtein Distance</div>
-      <div class="tech-badge"><span class="t-icon">&#128290;</span> Jaccard Index</div>
-      <div class="tech-badge"><span class="t-icon">&#128736;</span> 139 Tests (23 suites)</div>
-      <div class="tech-badge"><span class="t-icon">&#128196;</span> 98 Source Files</div>
-    </div>
-  </section>
-
-  <footer>
-    Brain v1.0 &mdash; Adaptive Error Memory &amp; Code Intelligence<br>
-    Built with TypeScript, SQLite, and synaptic connections<br>
-    <span style="color:var(--text3);font-size:.75rem;margin-top:8px;display:block">
-      Dashboard generated 2026-02-25 &mdash; Open <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">brain status</code> for live data
-    </span>
+  <footer style="text-align:center;padding:32px 0;color:var(--text3);font-size:.8rem">
+    Brain v1.0 — Aktualisieren: <code style="background:var(--bg3);padding:2px 8px;border-radius:4px">brain dashboard</code>
   </footer>
-
 </div>
 
 <script>
-(function(){
-  // === PROJECTS DATA ===
-  const projects = [
-    'ai-factory','ai-hub-app','aidealz','aisignal','aisurvial','aiwebapp-generator',
-    'aiwebapp-platform','aiwebapp-plattform','aiwebapp','aldi','birth','birthwise',
-    'botiq','brain','conten-agent','deepsearch','design','etsy-svg-starter',
-    'fixed-generators','fussballnews','genmonster','klapperjass-app','maila',
-    'marketiq-pro','messebau','pokemon','siedler','spiritpanda','sprachen',
-    'steamdeck-usb','steamdeck','sticheln','test'
-  ];
-  const colors = ['#4488ff','#aa66ff','#44ff88','#ff4466','#ffaa44','#44ddff'];
-  const grid = document.getElementById('projectsGrid');
-  projects.forEach(function(p, i){
-    const chip = document.createElement('div');
-    chip.className = 'project-chip';
-    const dot = document.createElement('span');
-    dot.className = 'dot';
-    dot.style.background = colors[i % colors.length];
-    chip.appendChild(dot);
-    chip.appendChild(document.createTextNode(p));
-    grid.appendChild(chip);
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
   });
-
-  // === MCP TOOLS DATA ===
-  const mcpTools = [
-    {name:'brain_report_error', cat:'error', catLabel:'Error Brain', desc:'Report an error that occurred. Brain stores it, matches against known errors, returns solutions if available.'},
-    {name:'brain_query_error', cat:'error', catLabel:'Error Brain', desc:'Search for similar errors and their solutions in the Brain database.'},
-    {name:'brain_report_solution', cat:'error', catLabel:'Error Brain', desc:'Report a successful solution for an error. Brain will learn from this.'},
-    {name:'brain_report_attempt', cat:'error', catLabel:'Error Brain', desc:'Report a failed solution attempt. Brain learns what does NOT work.'},
-    {name:'brain_find_reusable_code', cat:'code', catLabel:'Code Brain', desc:'Search for reusable code modules from other projects.'},
-    {name:'brain_register_code', cat:'code', catLabel:'Code Brain', desc:'Register a code module as reusable. Brain will analyze and make it available.'},
-    {name:'brain_check_code_similarity', cat:'code', catLabel:'Code Brain', desc:'Check if similar code already exists before writing new code.'},
-    {name:'brain_explore', cat:'synapse', catLabel:'Synapse Net', desc:'Explore what Brain knows about a topic via spreading activation.'},
-    {name:'brain_connections', cat:'synapse', catLabel:'Synapse Net', desc:'Find how two things are connected in Brain\'s synapse network.'},
-    {name:'brain_insights', cat:'research', catLabel:'Research', desc:'Get research insights: trends, gaps, synergies, template candidates, suggestions.'},
-    {name:'brain_suggest', cat:'research', catLabel:'Research', desc:'Ask Brain for suggestions: what to build next, what to improve, what patterns to extract.'},
-    {name:'brain_status', cat:'system', catLabel:'System', desc:'Get current Brain status: errors, solutions, code modules, synapse network, insights.'},
-    {name:'brain_notifications', cat:'system', catLabel:'System', desc:'Get pending notifications (new solutions, recurring errors, research insights).'},
-  ];
-  const mcpGrid = document.getElementById('mcpGrid');
-  mcpTools.forEach(function(t){
-    var card = document.createElement('div');
-    card.className = 'mcp-tool';
-    card.innerHTML =
-      '<div class="tool-category ' + t.cat + '">' + t.catLabel + '</div>' +
-      '<div class="tool-name">' + t.name + '</div>' +
-      '<div class="tool-desc">' + t.desc + '</div>';
-    mcpGrid.appendChild(card);
-  });
-
-  // === COUNTER ANIMATION ===
-  function animateCounters(){
-    document.querySelectorAll('.stat-number').forEach(function(el){
-      var raw = el.getAttribute('data-raw');
-      if(raw){ el.textContent = raw; return; }
-      var target = parseInt(el.getAttribute('data-count'), 10);
-      if(isNaN(target)){ return; }
-      if(target === 0){ el.textContent = '0'; return; }
-      var duration = 1800, start = null;
-      function step(ts){
-        if(!start) start = ts;
-        var p = Math.min((ts - start) / duration, 1);
-        var ease = 1 - Math.pow(1 - p, 3);
-        el.textContent = Math.round(target * ease).toLocaleString();
-        if(p < 1) requestAnimationFrame(step);
-      }
-      requestAnimationFrame(step);
-    });
-  }
-
-  // === Intersection Observer for animations ===
-  var observer = new IntersectionObserver(function(entries){
-    entries.forEach(function(entry){
-      if(entry.isIntersecting){
-        entry.target.classList.add('animate');
-        if(entry.target.closest('#stats')){
-          animateCounters();
-        }
-      }
-    });
-  }, {threshold: 0.1});
-  document.querySelectorAll('.animate').forEach(function(el){ observer.observe(el); });
-  // Start counters on load
-  setTimeout(animateCounters, 300);
-
-  // === BACKGROUND CANVAS (subtle particles) ===
-  var bgCanvas = document.getElementById('bgCanvas');
-  var bgCtx = bgCanvas.getContext('2d');
-  function resizeBg(){
-    bgCanvas.width = window.innerWidth;
-    bgCanvas.height = window.innerHeight;
-  }
-  resizeBg();
-  window.addEventListener('resize', resizeBg);
-  var bgParticles = [];
-  for(var i=0;i<60;i++){
-    bgParticles.push({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      r: Math.random() * 1.5 + 0.5,
-      a: Math.random() * 0.15 + 0.03,
-      color: colors[Math.floor(Math.random() * colors.length)]
-    });
-  }
-  function drawBg(){
-    bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-    // connections
-    for(var i=0;i<bgParticles.length;i++){
-      for(var j=i+1;j<bgParticles.length;j++){
-        var dx=bgParticles[i].x-bgParticles[j].x, dy=bgParticles[i].y-bgParticles[j].y;
-        var d=Math.sqrt(dx*dx+dy*dy);
-        if(d<200){
-          bgCtx.beginPath();
-          bgCtx.moveTo(bgParticles[i].x, bgParticles[i].y);
-          bgCtx.lineTo(bgParticles[j].x, bgParticles[j].y);
-          bgCtx.strokeStyle='rgba(100,100,180,' + (0.04 * (1 - d/200)) + ')';
-          bgCtx.lineWidth=0.5;
-          bgCtx.stroke();
-        }
-      }
-    }
-    // particles
-    bgParticles.forEach(function(p){
-      p.x += p.vx; p.y += p.vy;
-      if(p.x<0) p.x=bgCanvas.width;
-      if(p.x>bgCanvas.width) p.x=0;
-      if(p.y<0) p.y=bgCanvas.height;
-      if(p.y>bgCanvas.height) p.y=0;
-      bgCtx.beginPath();
-      bgCtx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-      bgCtx.fillStyle = p.color.replace(')', ',' + p.a + ')').replace('rgb','rgba');
-      // handle hex colors
-      var r2=parseInt(p.color.slice(1,3),16), g2=parseInt(p.color.slice(3,5),16), b2=parseInt(p.color.slice(5,7),16);
-      bgCtx.fillStyle = 'rgba('+r2+','+g2+','+b2+','+p.a+')';
-      bgCtx.fill();
-    });
-    requestAnimationFrame(drawBg);
-  }
-  drawBg();
-
-  // === SYNAPSE CANVAS (network visualization) ===
-  var synCanvas = document.getElementById('synapseCanvas');
-  var synCtx = synCanvas.getContext('2d');
-  function resizeSyn(){
-    var rect = synCanvas.parentElement.getBoundingClientRect();
-    synCanvas.width = rect.width;
-    synCanvas.height = rect.height;
-  }
-  resizeSyn();
-  window.addEventListener('resize', resizeSyn);
-
-  // Node types with colors
-  var nodeTypes = [
-    {type:'project', color:'#ffaa44', count:12},
-    {type:'code', color:'#4488ff', count:30},
-    {type:'error', color:'#ff4466', count:8},
-    {type:'solution', color:'#44ff88', count:6},
-    {type:'synapse', color:'#aa66ff', count:10},
-    {type:'insight', color:'#44ddff', count:5}
-  ];
-  var synNodes = [];
-  var synEdges = [];
-  nodeTypes.forEach(function(nt){
-    for(var i=0;i<nt.count;i++){
-      synNodes.push({
-        x: Math.random() * 0.8 + 0.1,
-        y: Math.random() * 0.8 + 0.1,
-        vx: 0, vy: 0,
-        r: nt.type==='project'? 6 : (nt.type==='code'? 3.5 : 4),
-        color: nt.color,
-        type: nt.type,
-        pulse: Math.random() * Math.PI * 2
-      });
-    }
-  });
-  // Create edges (mostly between different types)
-  for(var i=0;i<synNodes.length;i++){
-    var numEdges = Math.floor(Math.random()*3)+1;
-    for(var e=0;e<numEdges;e++){
-      var j = Math.floor(Math.random()*synNodes.length);
-      if(j!==i){
-        synEdges.push({from:i, to:j, strength:Math.random()*0.6+0.2});
-      }
-    }
-  }
-
-  // Traveling pulses along edges
-  var pulses = [];
-  function spawnPulse(){
-    if(pulses.length < 8){
-      var edge = synEdges[Math.floor(Math.random()*synEdges.length)];
-      pulses.push({edge:edge, t:0, speed:0.003+Math.random()*0.004, color:synNodes[edge.from].color});
-    }
-    setTimeout(spawnPulse, 300 + Math.random()*700);
-  }
-  spawnPulse();
-
-  function drawSynapse(time){
-    var w = synCanvas.width, h = synCanvas.height;
-    synCtx.clearRect(0, 0, w, h);
-
-    // Gentle force-directed drift
-    for(var i=0;i<synNodes.length;i++){
-      var n = synNodes[i];
-      // slight center pull
-      n.vx += (0.5 - n.x) * 0.0001;
-      n.vy += (0.5 - n.y) * 0.0001;
-      // repulsion from close nodes
-      for(var j=i+1;j<synNodes.length;j++){
-        var m = synNodes[j];
-        var dx = n.x - m.x, dy = n.y - m.y;
-        var d = Math.sqrt(dx*dx + dy*dy);
-        if(d < 0.15 && d > 0.001){
-          var f = 0.00002 / (d * d);
-          n.vx += dx * f; n.vy += dy * f;
-          m.vx -= dx * f; m.vy -= dy * f;
-        }
-      }
-      n.vx *= 0.98; n.vy *= 0.98;
-      n.x += n.vx; n.y += n.vy;
-      n.x = Math.max(0.05, Math.min(0.95, n.x));
-      n.y = Math.max(0.05, Math.min(0.95, n.y));
-    }
-
-    // Draw edges
-    synEdges.forEach(function(edge){
-      var a = synNodes[edge.from], b = synNodes[edge.to];
-      synCtx.beginPath();
-      synCtx.moveTo(a.x*w, a.y*h);
-      synCtx.lineTo(b.x*w, b.y*h);
-      var r=parseInt(a.color.slice(1,3),16), g=parseInt(a.color.slice(3,5),16), bl=parseInt(a.color.slice(5,7),16);
-      synCtx.strokeStyle = 'rgba('+r+','+g+','+bl+','+(edge.strength*0.15)+')';
-      synCtx.lineWidth = edge.strength * 1.5;
-      synCtx.stroke();
-    });
-
-    // Draw traveling pulses
-    pulses.forEach(function(p, idx){
-      p.t += p.speed;
-      if(p.t > 1){ pulses.splice(idx, 1); return; }
-      var a = synNodes[p.edge.from], b = synNodes[p.edge.to];
-      var px = a.x + (b.x - a.x) * p.t;
-      var py = a.y + (b.y - a.y) * p.t;
-      var r=parseInt(p.color.slice(1,3),16), g=parseInt(p.color.slice(3,5),16), bl=parseInt(p.color.slice(5,7),16);
-      synCtx.beginPath();
-      synCtx.arc(px*w, py*h, 3, 0, Math.PI*2);
-      synCtx.fillStyle = 'rgba('+r+','+g+','+bl+',0.9)';
-      synCtx.fill();
-      // glow
-      var grad = synCtx.createRadialGradient(px*w, py*h, 0, px*w, py*h, 12);
-      grad.addColorStop(0, 'rgba('+r+','+g+','+bl+',0.3)');
-      grad.addColorStop(1, 'rgba('+r+','+g+','+bl+',0)');
-      synCtx.beginPath();
-      synCtx.arc(px*w, py*h, 12, 0, Math.PI*2);
-      synCtx.fillStyle = grad;
-      synCtx.fill();
-    });
-
-    // Draw nodes
-    synNodes.forEach(function(n){
-      var t = time || 0;
-      var pulse = Math.sin(t * 0.002 + n.pulse) * 0.3 + 0.7;
-      var r=parseInt(n.color.slice(1,3),16), g=parseInt(n.color.slice(3,5),16), bl=parseInt(n.color.slice(5,7),16);
-
-      // glow
-      var grad = synCtx.createRadialGradient(n.x*w, n.y*h, 0, n.x*w, n.y*h, n.r*4);
-      grad.addColorStop(0, 'rgba('+r+','+g+','+bl+','+(0.2*pulse)+')');
-      grad.addColorStop(1, 'rgba('+r+','+g+','+bl+',0)');
-      synCtx.beginPath();
-      synCtx.arc(n.x*w, n.y*h, n.r*4, 0, Math.PI*2);
-      synCtx.fillStyle = grad;
-      synCtx.fill();
-
-      // node
-      synCtx.beginPath();
-      synCtx.arc(n.x*w, n.y*h, n.r, 0, Math.PI*2);
-      synCtx.fillStyle = 'rgba('+r+','+g+','+bl+','+(0.7+0.3*pulse)+')';
-      synCtx.fill();
-    });
-
-    requestAnimationFrame(drawSynapse);
-  }
-  requestAnimationFrame(drawSynapse);
-
-  // === SMOOTH SCROLL ===
-  document.querySelectorAll('nav a').forEach(function(a){
-    a.addEventListener('click', function(e){
-      var href = this.getAttribute('href');
-      if(href && href.startsWith('#')){
-        e.preventDefault();
-        var target = document.querySelector(href);
-        if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
-      }
-    });
-  });
-
-})();
+});
+// Animate numbers
+document.querySelectorAll('.stat-number').forEach(el => {
+  const target = parseInt(el.textContent.replace(/\D/g,''), 10);
+  if (isNaN(target) || target === 0) return;
+  let current = 0;
+  const step = Math.max(1, Math.floor(target / 40));
+  const interval = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.textContent = current.toLocaleString();
+    if (current >= target) clearInterval(interval);
+  }, 25);
+});
 </script>
 </body>
 </html>
