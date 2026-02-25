@@ -1,0 +1,25 @@
+{
+  "name": "brain",
+  "version": "0.1.0",
+  "description": "Adaptive error memory and code intelligence system",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "commander": "^13.0.0",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "tsx": "^4.19.0",
+    "vitest": "^3.0.0"
+  }
+}
