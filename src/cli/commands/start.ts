@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getDataDir } from '../../utils/paths.js';
 import { c, icons } from '../colors.js';
+import { checkForUpdate } from '../update-check.js';
 
 export function startCommand(): Command {
   return new Command('start')
@@ -49,12 +50,13 @@ export function startCommand(): Command {
       console.log(`${icons.brain}  ${c.info('Brain daemon starting')} ${c.dim(`(PID: ${child.pid})`)}`);
 
       // Wait briefly for PID file to appear
-      setTimeout(() => {
+      setTimeout(async () => {
         if (fs.existsSync(pidPath)) {
           console.log(`${icons.ok}  ${c.success('Brain daemon started successfully.')}`);
         } else {
           console.log(`${icons.clock}  ${c.warn('Brain daemon may still be starting.')} Check: ${c.cyan('brain status')}`);
         }
+        await checkForUpdate();
       }, 1000);
     });
 }

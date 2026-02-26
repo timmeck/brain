@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getDataDir } from '../../utils/paths.js';
 import { withIpc } from '../ipc-helper.js';
 import { c, icons, header, keyValue, divider } from '../colors.js';
+import { checkForUpdate, getCurrentVersion } from '../update-check.js';
 
 export function statusCommand(): Command {
   return new Command('status')
@@ -28,7 +29,7 @@ export function statusCommand(): Command {
         return;
       }
 
-      console.log(header('Brain Status', icons.brain));
+      console.log(header(`Brain Status v${getCurrentVersion()}`, icons.brain));
       console.log(`  ${c.green(`${icons.dot} RUNNING`)} ${c.dim(`(PID ${pid})`)}`);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,6 +67,8 @@ export function statusCommand(): Command {
 
         console.log(`  ${icons.insight}  ${c.orange.bold('Research Brain')}`);
         console.log(`     ${c.label('Insights:')}   ${c.value(summary.insights?.active ?? 0)} active`);
+
+        await checkForUpdate();
         console.log(`\n${divider()}`);
       });
     });
