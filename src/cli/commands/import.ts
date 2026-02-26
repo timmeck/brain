@@ -2,10 +2,13 @@ import { Command } from 'commander';
 import { withIpc } from '../ipc-helper.js';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { resolve, basename, relative, extname } from 'path';
+import { c, icons, header, divider, progressBar } from '../colors.js';
 
 const DEFAULT_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.py', '.rs', '.go',
   '.java', '.c', '.cpp', '.h', '.hpp', '.rb', '.sh',
+  '.html', '.css', '.scss', '.json', '.yaml', '.yml', '.toml',
+  '.md', '.sql', '.php', '.svelte', '.vue', '.astro',
 ]);
 
 const EXCLUDE_DIRS = new Set([
@@ -22,6 +25,10 @@ const LANG_MAP: Record<string, string> = {
   py: 'python', rs: 'rust', go: 'go', java: 'java',
   c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp',
   rb: 'ruby', sh: 'shell', bash: 'shell',
+  html: 'html', css: 'css', scss: 'scss',
+  json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'toml',
+  md: 'markdown', sql: 'sql', php: 'php',
+  svelte: 'svelte', vue: 'vue', astro: 'astro',
 };
 
 function detectLanguage(filePath: string): string {
@@ -75,7 +82,7 @@ export function importCommand(): Command {
     .description('Import source files from a project directory into Brain')
     .argument('<directory>', 'Project directory to scan')
     .option('-p, --project <name>', 'Project name (default: directory basename)')
-    .option('-e, --extensions <list>', 'Comma-separated extensions (default: ts,tsx,js,jsx,py,rs,go,java,c,cpp,h,hpp,rb,sh)')
+    .option('-e, --extensions <list>', 'Comma-separated extensions (default: ts,tsx,js,jsx,py,rs,go,java,c,cpp,h,hpp,rb,sh,html,css,scss,json,yaml,yml,toml,md,sql,php,svelte,vue,astro)')
     .option('--dry-run', 'List files that would be imported without importing')
     .option('--max-size <kb>', 'Skip files larger than N KB', '100')
     .action(async (directory: string, opts) => {
@@ -107,23 +114,23 @@ export function importCommand(): Command {
         process.exit(1);
       }
 
-      console.log(`Scanning ${dir} ...`);
+      console.log(`${icons.search}  ${c.info('Scanning')} ${c.value(dir)} ...`);
       const files = findSourceFiles(dir, extensions, maxSizeBytes);
 
       if (files.length === 0) {
-        console.log('No source files found.');
+        console.log(`${c.dim('No source files found.')}`);
         return;
       }
 
-      console.log(`Found ${files.length} source files.\n`);
+      console.log(`${icons.ok}  Found ${c.value(files.length)} source files.\n`);
 
       if (opts.dryRun) {
         for (const f of files) {
           const rel = relative(dir, f);
           const lang = detectLanguage(f);
-          console.log(`  [${lang}] ${rel}`);
+          console.log(`  ${c.cyan(`[${lang}]`)} ${c.dim(rel)}`);
         }
-        console.log(`\n${files.length} files would be imported as project "${projectName}".`);
+        console.log(`\n${c.value(files.length)} files would be imported as project ${c.cyan(`"${projectName}"`)}.`);
         return;
       }
 
@@ -146,7 +153,7 @@ export function importCommand(): Command {
             source = readFileSync(filePath, 'utf-8');
           } catch {
             failedCount++;
-            process.stdout.write(`  [${i + 1}/${files.length}] ${rel} — read error\n`);
+            process.stdout.write(`  ${c.dim(`[${i + 1}/${files.length}]`)} ${c.dim(rel)} ${c.red('— read error')}\n`);
             continue;
           }
 
@@ -164,27 +171,29 @@ export function importCommand(): Command {
             });
 
             const score = result.reusabilityScore ?? 0;
-            const status = result.isNew ? 'new' : 'existing';
+            const scoreColor = score >= 0.7 ? c.green : score >= 0.4 ? c.orange : c.red;
+            const statusTag = result.isNew ? c.green('new') : c.dim('existing');
             totalScore += score;
             imported++;
 
             if (result.isNew) newCount++;
             else existingCount++;
 
-            process.stdout.write(`  [${i + 1}/${files.length}] ${rel} → score: ${score.toFixed(2)} (${status})\n`);
+            process.stdout.write(`  ${c.dim(`[${i + 1}/${files.length}]`)} ${c.dim(rel)} ${c.dim(icons.arrow)} ${scoreColor(score.toFixed(2))} (${statusTag})\n`);
           } catch (err) {
             failedCount++;
             const msg = err instanceof Error ? err.message : String(err);
-            process.stdout.write(`  [${i + 1}/${files.length}] ${rel} — failed: ${msg.slice(0, 80)}\n`);
+            process.stdout.write(`  ${c.dim(`[${i + 1}/${files.length}]`)} ${c.dim(rel)} ${c.red(`— ${msg.slice(0, 80)}`)}\n`);
           }
         }
 
         const avgScore = imported > 0 ? (totalScore / imported).toFixed(2) : '0';
-        console.log(`\n--- Import Summary ---`);
-        console.log(`  Project:  ${projectName}`);
-        console.log(`  Imported: ${imported} (${newCount} new, ${existingCount} existing)`);
-        if (failedCount > 0) console.log(`  Failed:   ${failedCount}`);
-        console.log(`  Avg reusability score: ${avgScore}`);
+        console.log(header('Import Summary', icons.module));
+        console.log(`  ${c.label('Project:')}  ${c.cyan(projectName)}`);
+        console.log(`  ${c.label('Imported:')} ${c.value(imported)} (${c.green(`${newCount} new`)}, ${c.dim(`${existingCount} existing`)})`);
+        if (failedCount > 0) console.log(`  ${c.label('Failed:')}   ${c.red(failedCount)}`);
+        console.log(`  ${c.label('Avg score:')} ${c.value(avgScore)}  ${progressBar(parseFloat(avgScore), 1)}`);
+        console.log(divider());
       });
     });
 }

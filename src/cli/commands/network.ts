@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { withIpc } from '../ipc-helper.js';
+import { c, icons, header, keyValue, divider } from '../colors.js';
 
 export function networkCommand(): Command {
   return new Command('network')
@@ -13,7 +14,7 @@ export function networkCommand(): Command {
           const nodeId = parseInt(nodeIdStr, 10);
 
           if (!nodeType || isNaN(nodeId)) {
-            console.error('Invalid node format. Use: --node error:42');
+            console.error(c.error('Invalid node format. Use: --node error:42'));
             return;
           }
 
@@ -25,14 +26,16 @@ export function networkCommand(): Command {
           });
 
           if (!related?.length) {
-            console.log(`No connections found for ${nodeType}:${nodeId}`);
+            console.log(`${c.dim('No connections found for')} ${c.cyan(`${nodeType}:${nodeId}`)}`);
             return;
           }
 
-          console.log(`Connections from ${nodeType}:${nodeId}:\n`);
+          console.log(header(`Connections from ${nodeType}:${nodeId}`, icons.synapse));
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           for (const r of related as any[]) {
-            console.log(`  → ${r.nodeType}:${r.nodeId} (weight: ${(r.activation ?? r.weight ?? 0).toFixed(3)})`);
+            const weight = (r.activation ?? r.weight ?? 0);
+            const weightColor = weight >= 0.7 ? c.green : weight >= 0.3 ? c.orange : c.dim;
+            console.log(`  ${c.cyan(icons.arrow)} ${c.value(`${r.nodeType}:${r.nodeId}`)} ${c.label('weight:')} ${weightColor(weight.toFixed(3))}`);
           }
         } else {
           // Show general network stats
@@ -43,19 +46,22 @@ export function networkCommand(): Command {
             limit: parseInt(opts.limit, 10),
           });
 
-          console.log('Synapse Network Overview:\n');
-          console.log(`  Total synapses: ${stats.totalSynapses ?? 0}`);
-          console.log(`  Average weight: ${(stats.avgWeight ?? 0).toFixed(3)}`);
+          console.log(header('Synapse Network', icons.synapse));
+          console.log(keyValue('Total synapses', stats.totalSynapses ?? 0));
+          console.log(keyValue('Average weight', (stats.avgWeight ?? 0).toFixed(3)));
           console.log();
 
           if (overview?.strongestSynapses?.length) {
-            console.log('Strongest connections:');
+            console.log(`  ${c.purple.bold('Strongest connections:')}`);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const s of overview.strongestSynapses as any[]) {
-              console.log(`  ${s.source} → ${s.target} [${s.type}] weight: ${(s.weight ?? 0).toFixed(3)}`);
+              const weight = (s.weight ?? 0);
+              const weightColor = weight >= 0.7 ? c.green : weight >= 0.3 ? c.orange : c.dim;
+              console.log(`  ${c.dim(s.source)} ${c.cyan(icons.arrow)} ${c.dim(s.target)} ${c.label(`[${s.type}]`)} ${weightColor(weight.toFixed(3))}`);
             }
           }
         }
+        console.log(`\n${divider()}`);
       });
     });
 }

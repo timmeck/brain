@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { withIpc } from '../ipc-helper.js';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
+import { c, icons } from '../colors.js';
 
 export function dashboardCommand(): Command {
   return new Command('dashboard')
@@ -10,12 +11,14 @@ export function dashboardCommand(): Command {
     .option('--no-open', 'Generate without opening in browser')
     .action(async (opts) => {
       await withIpc(async (client) => {
-        console.log('Fetching data from Brain...');
+        console.log(`${icons.chart}  ${c.info('Fetching data from Brain...')}`);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const summary: any = await client.request('analytics.summary', {});
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const network: any = await client.request('synapse.stats', {});
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const networkOverview: any = await client.request('analytics.network', { limit: 50 });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const insights: any = await client.request('research.insights', {
           activeOnly: true,
@@ -44,6 +47,9 @@ export function dashboardCommand(): Command {
         const warnings = insightList.filter((i: InsightItem) => i.type === 'warning');
         const synergies = insightList.filter((i: InsightItem) => i.type === 'synergy' || i.type === 'optimization');
 
+        // Build synapse graph data
+        const synapseEdges = Array.isArray(networkOverview?.strongestSynapses) ? networkOverview.strongestSynapses : [];
+
         const data = {
           stats: {
             modules: summary.modules?.total ?? 0,
@@ -55,6 +61,7 @@ export function dashboardCommand(): Command {
           },
           langStats,
           insights: { templates, suggestions, trends, gaps, warnings, synergies },
+          synapseEdges,
         };
 
         const html = generateHtml(data);
@@ -63,10 +70,8 @@ export function dashboardCommand(): Command {
           : resolve(import.meta.dirname, '../../../dashboard.html');
 
         writeFileSync(outPath, html, 'utf-8');
-        console.log(`Dashboard written to ${outPath}`);
-        console.log(`  Modules: ${data.stats.modules}`);
-        console.log(`  Synapses: ${data.stats.synapses}`);
-        console.log(`  Insights: ${data.stats.insights}`);
+        console.log(`${icons.ok}  ${c.success('Dashboard written to')} ${c.dim(outPath)}`);
+        console.log(`  ${c.label('Modules:')} ${c.value(data.stats.modules)}  ${c.label('Synapses:')} ${c.value(data.stats.synapses)}  ${c.label('Insights:')} ${c.value(data.stats.insights)}`);
 
         if (opts.open !== false) {
           const { exec } = await import('child_process');
@@ -81,6 +86,13 @@ interface InsightItem {
   title: string;
   description?: string;
   priority?: string;
+}
+
+interface SynapseEdge {
+  source: string;
+  target: string;
+  type: string;
+  weight: number;
 }
 
 interface DashboardData {
@@ -101,6 +113,7 @@ interface DashboardData {
     warnings: InsightItem[];
     synergies: InsightItem[];
   };
+  synapseEdges: SynapseEdge[];
 }
 
 function esc(s: string): string {
@@ -108,7 +121,7 @@ function esc(s: string): string {
 }
 
 function generateHtml(data: DashboardData): string {
-  const { stats, langStats, insights } = data;
+  const { stats, langStats, insights, synapseEdges } = data;
 
   // Build language chart bars
   const sortedLangs = Object.entries(langStats).sort((a, b) => b[1] - a[1]);
@@ -276,6 +289,14 @@ function generateHtml(data: DashboardData): string {
   .prio-low{background:rgba(139,143,176,.1);color:var(--text2);border:1px solid rgba(139,143,176,.2)}
   .empty{color:var(--text3);font-style:italic;padding:24px}
 
+  /* Graph */
+  .graph-container{position:relative;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:blur(20px)}
+  #synapse-graph{width:100%;height:500px;display:block;cursor:grab}
+  #synapse-graph:active{cursor:grabbing}
+  .graph-legend{display:flex;gap:16px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid var(--glass-border);font-size:.8rem;color:var(--text2)}
+  .legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .graph-tooltip{position:absolute;display:none;background:var(--bg2);border:1px solid var(--glass-border);border-radius:8px;padding:8px 14px;font-size:.8rem;color:var(--text);pointer-events:none;z-index:10;backdrop-filter:blur(20px);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+
   /* Footer */
   footer{text-align:center;padding:40px 0;border-top:1px solid var(--glass-border)}
   footer p{color:var(--text3);font-size:.8rem}
@@ -310,7 +331,8 @@ function generateHtml(data: DashboardData): string {
   <nav class="reveal reveal-delay-1">
     <a href="#stats">Stats</a>
     <a href="#languages">Languages</a>
-    <a href="#research" class="research">&#128300; Research</a>
+    <a href="#network">&#128300; Network</a>
+    <a href="#research" class="research">&#128161; Research</a>
   </nav>
 
   <section id="stats" class="reveal reveal-delay-2">
@@ -330,7 +352,22 @@ function generateHtml(data: DashboardData): string {
     <div class="lang-chart">${langBars}</div>
   </section>
 
-  <section id="research" class="reveal reveal-delay-4">
+  <section id="network" class="reveal reveal-delay-4">
+    <div class="section-title"><div class="icon" style="background:rgba(71,229,255,.1)">&#128300;</div> Synapse Network</div>
+    <div class="graph-container">
+      <canvas id="synapse-graph"></canvas>
+      <div class="graph-legend">
+        <span><span class="legend-dot" style="background:var(--blue)"></span> error</span>
+        <span><span class="legend-dot" style="background:var(--green)"></span> solution</span>
+        <span><span class="legend-dot" style="background:var(--purple)"></span> code_module</span>
+        <span><span class="legend-dot" style="background:var(--orange)"></span> project</span>
+        <span><span class="legend-dot" style="background:var(--cyan)"></span> other</span>
+      </div>
+      <div id="graph-tooltip" class="graph-tooltip"></div>
+    </div>
+  </section>
+
+  <section id="research" class="reveal reveal-delay-5">
     <div class="section-title"><div class="icon" style="background:rgba(71,229,255,.1)">&#128300;</div> Research Insights</div>
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="templates">&#127912; Templates <span class="count">${insights.templates.length}</span></button>
@@ -489,6 +526,192 @@ setTimeout(() => {
     el.style.width = el.dataset.target + '%';
   });
 }, 500);
+
+// --- Synapse Force-Directed Graph ---
+(function(){
+  const edges = ${JSON.stringify(synapseEdges.map((e: SynapseEdge) => ({ s: e.source, t: e.target, type: e.type, w: e.weight })))};
+  const canvas = document.getElementById('synapse-graph');
+  if (!canvas || !edges.length) return;
+  const ctx = canvas.getContext('2d');
+  const container = canvas.parentElement;
+  let W, H, dpr;
+
+  const NODE_COLORS = {
+    error: '#ff5577', solution: '#3dffa0', code_module: '#b47aff',
+    project: '#ffb347', rule: '#5b9cff', antipattern: '#ff5577'
+  };
+  const DEFAULT_COLOR = '#47e5ff';
+
+  // Build graph nodes & edges
+  const nodeMap = new Map();
+  const graphEdges = [];
+  for (const e of edges) {
+    if (!nodeMap.has(e.s)) nodeMap.set(e.s, { id: e.s, type: e.s.split(':')[0], x: 0, y: 0, vx: 0, vy: 0, connections: 0 });
+    if (!nodeMap.has(e.t)) nodeMap.set(e.t, { id: e.t, type: e.t.split(':')[0], x: 0, y: 0, vx: 0, vy: 0, connections: 0 });
+    nodeMap.get(e.s).connections++;
+    nodeMap.get(e.t).connections++;
+    graphEdges.push({ source: nodeMap.get(e.s), target: nodeMap.get(e.t), type: e.type, weight: e.w });
+  }
+  const nodes = [...nodeMap.values()];
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    W = container.clientWidth;
+    H = 500;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Random initial positions
+  for (const n of nodes) {
+    n.x = W * 0.2 + Math.random() * W * 0.6;
+    n.y = H * 0.2 + Math.random() * H * 0.6;
+  }
+
+  // Force simulation
+  const REPULSION = 3000;
+  const ATTRACTION = 0.008;
+  const DAMPING = 0.85;
+  const CENTER_GRAVITY = 0.002;
+  let hovered = null;
+  let dragging = null;
+  let dragOff = {x:0,y:0};
+
+  function simulate() {
+    // Repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[i].x - nodes[j].x;
+        let dy = nodes[i].y - nodes[j].y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        let force = REPULSION / (dist * dist);
+        let fx = (dx / dist) * force;
+        let fy = (dy / dist) * force;
+        nodes[i].vx += fx; nodes[i].vy += fy;
+        nodes[j].vx -= fx; nodes[j].vy -= fy;
+      }
+    }
+    // Attraction along edges
+    for (const e of graphEdges) {
+      let dx = e.target.x - e.source.x;
+      let dy = e.target.y - e.source.y;
+      let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      let force = (dist - 100) * ATTRACTION * e.weight;
+      let fx = (dx / dist) * force;
+      let fy = (dy / dist) * force;
+      e.source.vx += fx; e.source.vy += fy;
+      e.target.vx -= fx; e.target.vy -= fy;
+    }
+    // Center gravity
+    for (const n of nodes) {
+      n.vx += (W/2 - n.x) * CENTER_GRAVITY;
+      n.vy += (H/2 - n.y) * CENTER_GRAVITY;
+    }
+    // Apply & damp
+    for (const n of nodes) {
+      if (n === dragging) continue;
+      n.vx *= DAMPING; n.vy *= DAMPING;
+      n.x += n.vx; n.y += n.vy;
+      n.x = Math.max(20, Math.min(W - 20, n.x));
+      n.y = Math.max(20, Math.min(H - 20, n.y));
+    }
+  }
+
+  function getNodeRadius(n) { return Math.min(16, 5 + n.connections * 1.5); }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    // Edges
+    for (const e of graphEdges) {
+      const alpha = 0.15 + e.weight * 0.5;
+      ctx.strokeStyle = 'rgba(91,156,255,' + Math.min(0.8, alpha) + ')';
+      ctx.lineWidth = 0.5 + e.weight * 2;
+      ctx.beginPath();
+      ctx.moveTo(e.source.x, e.source.y);
+      ctx.lineTo(e.target.x, e.target.y);
+      ctx.stroke();
+    }
+    // Nodes
+    for (const n of nodes) {
+      const r = getNodeRadius(n);
+      const color = NODE_COLORS[n.type] || DEFAULT_COLOR;
+      const isHover = n === hovered || n === dragging;
+      // Glow
+      if (isHover) {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 20;
+      }
+      ctx.fillStyle = color;
+      ctx.globalAlpha = isHover ? 1 : 0.8;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      // Label for hovered or large nodes
+      if (isHover || n.connections >= 4) {
+        ctx.fillStyle = '#e8eaf6';
+        ctx.font = (isHover ? 'bold ' : '') + '11px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(n.id, n.x, n.y - r - 6);
+      }
+    }
+    simulate();
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+  // Interaction
+  const tooltip = document.getElementById('graph-tooltip');
+  function getNodeAt(mx, my) {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i], r = getNodeRadius(n);
+      if (Math.hypot(mx - n.x, my - n.y) <= r + 4) return n;
+    }
+    return null;
+  }
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  canvas.addEventListener('mousemove', function(e) {
+    const p = getPos(e);
+    if (dragging) {
+      dragging.x = p.x + dragOff.x;
+      dragging.y = p.y + dragOff.y;
+      dragging.vx = 0; dragging.vy = 0;
+      return;
+    }
+    const n = getNodeAt(p.x, p.y);
+    hovered = n;
+    canvas.style.cursor = n ? 'pointer' : 'grab';
+    if (n) {
+      const conns = graphEdges.filter(e => e.source === n || e.target === n);
+      tooltip.innerHTML = '<strong>' + n.id + '</strong><br>' + conns.length + ' connections';
+      tooltip.style.display = 'block';
+      tooltip.style.left = (p.x + 15) + 'px';
+      tooltip.style.top = (p.y - 10) + 'px';
+    } else {
+      tooltip.style.display = 'none';
+    }
+  });
+  canvas.addEventListener('mousedown', function(e) {
+    const p = getPos(e);
+    const n = getNodeAt(p.x, p.y);
+    if (n) {
+      dragging = n;
+      dragOff = { x: n.x - p.x, y: n.y - p.y };
+      canvas.style.cursor = 'grabbing';
+    }
+  });
+  canvas.addEventListener('mouseup', function() { dragging = null; });
+  canvas.addEventListener('mouseleave', function() { dragging = null; hovered = null; tooltip.style.display = 'none'; });
+})();
 </script>
 </body>
 </html>`;

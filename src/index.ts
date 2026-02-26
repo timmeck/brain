@@ -11,6 +11,8 @@ import { networkCommand } from './cli/commands/network.js';
 import { exportCommand } from './cli/commands/export.js';
 import { importCommand } from './cli/commands/import.js';
 import { dashboardCommand } from './cli/commands/dashboard.js';
+import { learnCommand } from './cli/commands/learn.js';
+import { configCommand } from './cli/commands/config.js';
 
 const program = new Command();
 
@@ -29,6 +31,8 @@ program.addCommand(networkCommand());
 program.addCommand(exportCommand());
 program.addCommand(importCommand());
 program.addCommand(dashboardCommand());
+program.addCommand(learnCommand());
+program.addCommand(configCommand());
 
 // Hidden command: run MCP server (called by Claude Code)
 program

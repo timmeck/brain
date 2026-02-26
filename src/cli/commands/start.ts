@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getDataDir } from '../../utils/paths.js';
+import { c, icons } from '../colors.js';
 
 export function startCommand(): Command {
   return new Command('start')
@@ -17,7 +18,7 @@ export function startCommand(): Command {
         const pid = parseInt(fs.readFileSync(pidPath, 'utf8').trim(), 10);
         try {
           process.kill(pid, 0); // Check if process exists
-          console.log(`Brain daemon is already running (PID: ${pid})`);
+          console.log(`${icons.brain}  Brain daemon is ${c.green('already running')} ${c.dim(`(PID: ${pid})`)}`);
           return;
         } catch {
           // PID file stale, remove it
@@ -45,14 +46,14 @@ export function startCommand(): Command {
       });
       child.unref();
 
-      console.log(`Brain daemon starting (PID: ${child.pid})`);
+      console.log(`${icons.brain}  ${c.info('Brain daemon starting')} ${c.dim(`(PID: ${child.pid})`)}`);
 
       // Wait briefly for PID file to appear
       setTimeout(() => {
         if (fs.existsSync(pidPath)) {
-          console.log('Brain daemon started successfully.');
+          console.log(`${icons.ok}  ${c.success('Brain daemon started successfully.')}`);
         } else {
-          console.log('Brain daemon may still be starting. Check: brain status');
+          console.log(`${icons.clock}  ${c.warn('Brain daemon may still be starting.')} Check: ${c.cyan('brain status')}`);
         }
       }, 1000);
     });

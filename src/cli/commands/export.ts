@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { withIpc } from '../ipc-helper.js';
+import { c, icons } from '../colors.js';
 
 export function exportCommand(): Command {
   return new Command('export')
@@ -7,6 +8,8 @@ export function exportCommand(): Command {
     .option('--format <fmt>', 'Output format: json (default)', 'json')
     .action(async () => {
       await withIpc(async (client) => {
+        process.stderr.write(`${icons.gear}  ${c.info('Exporting Brain data...')}\n`);
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const summary: any = await client.request('analytics.summary', {});
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,6 +25,7 @@ export function exportCommand(): Command {
         };
 
         console.log(JSON.stringify(data, null, 2));
+        process.stderr.write(`${icons.ok}  ${c.success('Export complete.')}\n`);
       });
     });
 }

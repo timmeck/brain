@@ -120,6 +120,9 @@ export class BrainCore {
     this.researchEngine.start();
     logger.info(`Research engine started (interval: ${config.research.intervalMs}ms)`);
 
+    // Expose learning engine to IPC
+    services.learning = this.learningEngine;
+
     // 10. IPC Server
     const router = new IpcRouter(services);
     this.ipcServer = new IpcServer(router, config.ipc.pipeName);

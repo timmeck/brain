@@ -10,6 +10,7 @@ import type { SynapseService } from '../services/synapse.service.js';
 import type { ResearchService } from '../services/research.service.js';
 import type { NotificationService } from '../services/notification.service.js';
 import type { AnalyticsService } from '../services/analytics.service.js';
+import type { LearningEngine, LearningCycleResult } from '../learning/learning-engine.js';
 
 export interface Services {
   error: ErrorService;
@@ -21,6 +22,7 @@ export interface Services {
   research: ResearchService;
   notification: NotificationService;
   analytics: AnalyticsService;
+  learning?: LearningEngine;
 }
 
 type MethodHandler = (params: unknown) => unknown;
@@ -76,7 +78,7 @@ export class IpcRouter {
       ['code.analyze',            (params) => s.code.analyzeAndRegister(p(params))],
       ['code.find',               (params) => s.code.findReusable(p(params))],
       ['code.similarity',         (params) => s.code.checkSimilarity(p(params).source, p(params).language)],
-      ['code.modules',            (params) => s.code.listModules(p(params)?.projectId)],
+      ['code.modules',            (params) => s.code.listModules(p(params)?.projectId, p(params)?.language, p(params)?.limit)],
       ['code.get',                (params) => s.code.getById(p(params).id)],
 
       // Prevention
@@ -101,6 +103,12 @@ export class IpcRouter {
       // Analytics
       ['analytics.summary',       (params) => s.analytics.getSummary(p(params)?.projectId)],
       ['analytics.network',       (params) => s.analytics.getNetworkOverview(p(params)?.limit)],
+
+      // Learning
+      ['learning.run',            () => {
+        if (!s.learning) throw new Error('Learning engine not available');
+        return s.learning.runCycle();
+      }],
     ]);
   }
 }

@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getDataDir } from '../../utils/paths.js';
+import { c, icons } from '../colors.js';
 
 export function stopCommand(): Command {
   return new Command('stop')
@@ -10,7 +11,7 @@ export function stopCommand(): Command {
       const pidPath = path.join(getDataDir(), 'brain.pid');
 
       if (!fs.existsSync(pidPath)) {
-        console.log('Brain daemon is not running (no PID file found).');
+        console.log(`${icons.brain}  ${c.dim('Brain daemon is not running (no PID file found).')}`);
         return;
       }
 
@@ -18,12 +19,12 @@ export function stopCommand(): Command {
 
       try {
         process.kill(pid, 'SIGTERM');
-        console.log(`Brain daemon stopped (PID: ${pid})`);
+        console.log(`${icons.brain}  ${c.success('Brain daemon stopped')} ${c.dim(`(PID: ${pid})`)}`);
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ESRCH') {
-          console.log('Brain daemon was not running (stale PID file removed).');
+          console.log(`${icons.brain}  ${c.dim('Brain daemon was not running (stale PID file removed).')}`);
         } else {
-          console.error(`Failed to stop daemon: ${err}`);
+          console.error(`${icons.error}  ${c.error(`Failed to stop daemon: ${err}`)}`);
         }
       }
 

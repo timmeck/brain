@@ -127,11 +127,14 @@ export class CodeService {
     return findSemanticMatches(source, allModules, 0.5);
   }
 
-  listModules(projectId?: number): CodeModuleRecord[] {
+  listModules(projectId?: number, language?: string, limit?: number): CodeModuleRecord[] {
     if (projectId) {
       return this.codeModuleRepo.findByProject(projectId);
     }
-    return [];
+    if (language) {
+      return this.codeModuleRepo.findByLanguage(language, limit);
+    }
+    return this.codeModuleRepo.findAll(limit);
   }
 
   getById(id: number): CodeModuleRecord | undefined {
