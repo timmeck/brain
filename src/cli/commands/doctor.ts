@@ -84,7 +84,13 @@ export function doctorCommand(): Command {
         const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
         const hooks = settings.hooks;
         const hasPostToolUse = hooks?.PostToolUse?.some(
-          (h: { command?: string }) => h.command?.includes('brain') || h.command?.includes('post-tool-use'),
+          (h: { command?: string; hooks?: Array<{ command?: string }> }) => {
+            // Support both flat format (h.command) and nested format (h.hooks[].command)
+            if (h.command?.includes('brain') || h.command?.includes('post-tool-use')) return true;
+            return h.hooks?.some(
+              (inner) => inner.command?.includes('brain') || inner.command?.includes('post-tool-use'),
+            );
+          },
         );
         if (hasPostToolUse) {
           pass('Auto-detect hook active');
