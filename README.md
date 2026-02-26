@@ -12,6 +12,7 @@ Without Brain, Claude Code starts fresh every session. With Brain:
 - **Code is never rewritten** — Before writing new code, Brain checks if similar modules already exist across your projects
 - **Patterns emerge automatically** — The research engine analyzes your codebase to find trends, gaps, and synergies
 - **Knowledge compounds** — Every fix, every module, every session makes Brain smarter
+- **Errors are caught automatically** — Hooks detect errors in real-time and report them to Brain without manual intervention
 
 ## Features
 
@@ -21,8 +22,12 @@ Without Brain, Claude Code starts fresh every session. With Brain:
 - **Spreading Activation** — Explore related knowledge by activating nodes in the synapse network
 - **Research Engine** — Automated analysis producing actionable insights: trends, gaps, synergies, template candidates
 - **Learning Engine** — Pattern extraction, rule generation, confidence decay, antipattern detection
-- **Interactive Dashboard** — HTML dashboard with live stats, language distribution, and categorized insights
-- **Full CLI** — Query, explore, and manage Brain from the terminal
+- **Auto Error Detection** — PostToolUse hook automatically captures errors from Bash commands and reports them to Brain
+- **Interactive Dashboard** — HTML dashboard with live stats, language distribution chart, and categorized insights
+- **Project Management** — Import entire codebases, track modules per project, view stats across all projects
+- **Health Diagnostics** — Built-in doctor command checks daemon, database, MCP config, and hooks
+- **Auto Update Check** — Notifies you when a new version is available on npm
+- **Full CLI** — 16 commands to query, explore, manage, and diagnose Brain from the terminal
 - **MCP Integration** — 13 tools exposed to Claude Code via Model Context Protocol
 
 ## Quick Start
@@ -44,42 +49,49 @@ npm run build
 
 ### Setup with Claude Code
 
-Add Brain to your Claude Code MCP configuration (`~/.claude/settings.json`):
+Add Brain's MCP server and auto-detect hook to your Claude Code configuration (`~/.claude/settings.json`):
 
 ```json
 {
   "mcpServers": {
     "brain": {
-      "command": "node",
-      "args": ["/path/to/brain/dist/mcp/server.js"]
+      "command": "brain",
+      "args": ["mcp-server"]
     }
-  }
-}
-```
-
-Optionally, add hooks to auto-report errors and solutions:
-
-```json
-{
+  },
   "hooks": {
-    "postToolUse": [
+    "PostToolUse": [
       {
-        "matcher": "Bash",
-        "command": "node /path/to/brain/dist/hooks/post-tool-use.js"
+        "matcher": {
+          "tool_name": "Bash"
+        },
+        "command": "node C:\\Users\\<YOU>\\AppData\\Roaming\\npm\\node_modules\\@timmeck\\brain\\dist\\hooks\\post-tool-use.js"
       }
     ]
   }
 }
 ```
 
+> **Note:** Replace `<YOU>` with your Windows username. On macOS/Linux, the path is the global npm prefix (run `npm prefix -g` to find it).
+
 ### Start the Daemon
 
 ```bash
 brain start
 brain status
+brain doctor    # verify everything is configured correctly
 ```
 
 The daemon runs background tasks: learning cycles, research analysis, synapse maintenance, and confidence decay.
+
+### Import Your Projects
+
+```bash
+brain import ./my-project
+brain projects              # see all imported projects
+```
+
+Brain scans for source files (TypeScript, JavaScript, Python, Rust, Go, Shell, HTML, CSS, JSON, YAML, TOML, Markdown, SQL, and more) and registers code modules with reusability scores.
 
 ## Architecture
 
@@ -141,12 +153,16 @@ The daemon runs background tasks: learning cycles, research analysis, synapse ma
 brain start              Start the Brain daemon
 brain stop               Stop the daemon
 brain status             Show stats (errors, solutions, modules, synapses, insights)
+brain doctor             Health check: daemon, DB, MCP, hooks
+brain projects           List all imported projects with module counts
 brain query <text>       Search for errors and solutions
 brain modules            List registered code modules
 brain insights           Show research insights
 brain network            Explore the synapse network
-brain export             Export Brain data
-brain import <file>      Import data into Brain
+brain learn              Trigger a learning cycle manually
+brain config             View and manage Brain configuration
+brain export             Export Brain data as JSON
+brain import <dir>       Import a project directory into Brain
 brain dashboard          Generate interactive HTML dashboard
 ```
 
@@ -170,11 +186,22 @@ These tools are available to Claude Code when Brain is configured as an MCP serv
 | `brain_status` | Current Brain stats |
 | `brain_notifications` | Get pending notifications |
 
+## Auto Error Detection
+
+When the PostToolUse hook is configured, Brain automatically:
+
+1. **Captures errors** — Detects errors from Bash command output (exit codes, error patterns like `TypeError`, `ENOENT`, `npm ERR!`, `BUILD FAILED`, etc.)
+2. **Reports to Brain** — Sends the error to the daemon for storage and matching
+3. **Suggests solutions** — If Brain has seen a similar error before, it outputs a hint via stderr
+4. **Checks antipatterns** — Warns if the error matches a known antipattern
+
+This happens silently in the background — no manual intervention needed.
+
 ## How It Learns
 
-1. **Error Reported** — Claude encounters an error and reports it via `brain_report_error`
+1. **Error Reported** — Claude encounters an error and reports it via `brain_report_error` (or the hook catches it automatically)
 2. **Solution Found** — When the error is fixed, `brain_report_solution` records the fix
-3. **Synapses Form** — Brain creates weighted connections: error <-> solution, error <-> code module
+3. **Synapses Form** — Brain creates weighted connections: error ↔ solution, error ↔ code module
 4. **Confidence Updates** — Wilson Score Interval computes conservative confidence from success/fail history
 5. **Patterns Emerge** — Learning engine extracts recurring patterns and generates preventive rules
 6. **Research Runs** — Background analysis finds trends, gaps, and cross-project synergies
@@ -186,6 +213,7 @@ These tools are available to Claude Code when Brain is configured as an MCP serv
 - **better-sqlite3** — Fast, embedded database
 - **MCP SDK** — Model Context Protocol integration
 - **Commander** — CLI framework
+- **Chalk** — Colored terminal output
 - **Winston** — Structured logging
 - **Vitest** — Testing
 
