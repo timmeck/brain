@@ -23,12 +23,12 @@ interface MatchSignal {
 
 // Base signals (used when vector search is NOT available)
 const SIGNALS_BASE: MatchSignal[] = [
-  { name: 'fingerprint', weight: 0.30, compute: fingerprintMatch },
-  { name: 'message_similarity', weight: 0.20, compute: messageSimilarity },
+  { name: 'fingerprint', weight: 0.20, compute: fingerprintMatch },
+  { name: 'message_similarity', weight: 0.25, compute: messageSimilarity },
   { name: 'type_match', weight: 0.15, compute: typeMatch },
   { name: 'stack_similarity', weight: 0.15, compute: stackSimilarity },
-  { name: 'file_similarity', weight: 0.10, compute: fileSimilarity },
-  { name: 'context_similarity', weight: 0.10, compute: contextSimilarity },
+  { name: 'file_similarity', weight: 0.12, compute: fileSimilarity },
+  { name: 'context_similarity', weight: 0.13, compute: contextSimilarity },
 ];
 
 // Hybrid signals (used when vector search IS available — vector gets 20% weight)
@@ -42,7 +42,7 @@ const SIGNALS_HYBRID: MatchSignal[] = [
 ];
 
 const VECTOR_WEIGHT = 0.20;
-const MATCH_THRESHOLD = 0.70;
+const MATCH_THRESHOLD = 0.55;
 const STRONG_MATCH_THRESHOLD = 0.90;
 
 /**

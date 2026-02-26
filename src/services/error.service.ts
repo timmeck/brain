@@ -159,8 +159,8 @@ export class ErrorService {
   }
 
   query(input: ErrorQueryInput): ErrorRecord[] {
-    if (input.search) {
-      return this.errorRepo.search(input.search);
+    if (input.search && input.search.trim()) {
+      return this.errorRepo.search(input.search.trim());
     }
     if (input.resolved === false) {
       return this.errorRepo.findUnresolved(input.projectId);
@@ -168,7 +168,8 @@ export class ErrorService {
     if (input.projectId) {
       return this.errorRepo.findByProject(input.projectId);
     }
-    return [];
+    // Default: return recent errors (most recent first)
+    return this.errorRepo.findAll(input.limit ?? 100);
   }
 
   matchSimilar(errorId: number): MatchResult[] {

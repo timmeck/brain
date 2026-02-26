@@ -1,4 +1,5 @@
 import net from 'node:net';
+import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { getLogger } from '../utils/logger.js';
 
@@ -17,6 +18,11 @@ export class IpcServer {
   ) {}
 
   start(): void {
+    this.createServer();
+    this.listen();
+  }
+
+  private createServer(): void {
     this.server = net.createServer((socket) => {
       const clientId = randomUUID();
       this.clients.set(clientId, socket);
@@ -41,13 +47,73 @@ export class IpcServer {
         this.clients.delete(clientId);
       });
     });
+  }
 
-    this.server.on('error', (err) => {
-      logger.error('IPC server error:', err);
+  private listen(retried = false): void {
+    if (!this.server) return;
+
+    this.server.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE' && !retried) {
+        logger.warn(`IPC pipe in use, attempting to recover stale pipe: ${this.pipeName}`);
+        this.recoverStalePipe();
+      } else {
+        logger.error('IPC server error:', err);
+      }
     });
 
     this.server.listen(this.pipeName, () => {
       logger.info(`IPC server listening on ${this.pipeName}`);
+    });
+  }
+
+  /**
+   * On Windows, named pipes can remain after a crashed daemon.
+   * Try to connect as a client — if it fails, the pipe is stale and we can reclaim it.
+   * On Unix, simply unlink the socket file and retry.
+   */
+  private recoverStalePipe(): void {
+    const probe = net.createConnection(this.pipeName);
+
+    probe.on('connect', () => {
+      // Pipe is alive — another daemon is actually running
+      probe.destroy();
+      logger.error('IPC pipe is held by another running daemon. Stop it first with: brain stop');
+    });
+
+    probe.on('error', () => {
+      // Pipe is stale — no one is listening. Clean up and retry.
+      probe.destroy();
+      logger.info('Stale IPC pipe detected, reclaiming...');
+
+      // On Unix, unlink the socket file
+      if (process.platform !== 'win32') {
+        try { fs.unlinkSync(this.pipeName); } catch { /* ignore */ }
+      }
+
+      // Recreate server and retry (Windows auto-reclaims dead named pipes on re-listen)
+      this.createServer();
+      this.server!.on('error', (err) => {
+        logger.error('IPC server error after recovery:', err);
+      });
+      this.server!.listen(this.pipeName, () => {
+        logger.info(`IPC server recovered and listening on ${this.pipeName}`);
+      });
+    });
+
+    // Timeout: if probe hangs, treat pipe as stale
+    probe.setTimeout(2000, () => {
+      probe.destroy();
+      logger.warn('IPC pipe probe timed out, treating as stale');
+      if (process.platform !== 'win32') {
+        try { fs.unlinkSync(this.pipeName); } catch { /* ignore */ }
+      }
+      this.createServer();
+      this.server!.on('error', (err) => {
+        logger.error('IPC server error after timeout recovery:', err);
+      });
+      this.server!.listen(this.pipeName, () => {
+        logger.info(`IPC server recovered (timeout) and listening on ${this.pipeName}`);
+      });
     });
   }
 
