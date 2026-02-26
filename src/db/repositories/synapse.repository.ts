@@ -45,6 +45,12 @@ export class SynapseRepository {
       countByType: db.prepare('SELECT synapse_type, COUNT(*) as count FROM synapses GROUP BY synapse_type'),
       totalCount: db.prepare('SELECT COUNT(*) as count FROM synapses'),
       topByWeight: db.prepare('SELECT * FROM synapses ORDER BY weight DESC LIMIT ?'),
+      topDiverse: db.prepare(`
+        SELECT * FROM (
+          SELECT *, ROW_NUMBER() OVER (PARTITION BY synapse_type ORDER BY weight DESC) as rn
+          FROM synapses
+        ) WHERE rn <= ? ORDER BY weight DESC
+      `),
     };
   }
 
@@ -125,6 +131,10 @@ export class SynapseRepository {
 
   topByWeight(limit: number): SynapseRecord[] {
     return this.stmts.topByWeight.all(limit) as SynapseRecord[];
+  }
+
+  topDiverse(perType: number): SynapseRecord[] {
+    return this.stmts.topDiverse.all(perType) as SynapseRecord[];
   }
 
   countNodes(): number {

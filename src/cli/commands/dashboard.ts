@@ -20,7 +20,7 @@ export function dashboardCommand(): Command {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const network: any = await client.request('synapse.stats', {});
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const networkOverview: any = await client.request('analytics.network', { limit: 50 });
+        const networkOverview: any = await client.request('analytics.network', { limit: 90 });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const insights: any = await client.request('research.insights', {
           activeOnly: true,
@@ -328,7 +328,7 @@ function generateHtml(data: DashboardData): string {
 
   /* Graph */
   .graph-container{position:relative;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:blur(20px)}
-  #synapse-graph{width:100%;height:500px;display:block;cursor:grab}
+  #synapse-graph{width:100%;height:650px;display:block;cursor:grab}
   #synapse-graph:active{cursor:grabbing}
   .graph-legend{display:flex;gap:16px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid var(--glass-border);font-size:.8rem;color:var(--text2)}
   .legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
@@ -394,11 +394,12 @@ function generateHtml(data: DashboardData): string {
     <div class="graph-container">
       <canvas id="synapse-graph"></canvas>
       <div class="graph-legend">
-        <span><span class="legend-dot" style="background:var(--blue)"></span> error</span>
-        <span><span class="legend-dot" style="background:var(--green)"></span> solution</span>
-        <span><span class="legend-dot" style="background:var(--purple)"></span> code_module</span>
-        <span><span class="legend-dot" style="background:var(--orange)"></span> project</span>
-        <span><span class="legend-dot" style="background:var(--cyan)"></span> other</span>
+        <span><span class="legend-dot" style="background:#ff5577"></span> error</span>
+        <span><span class="legend-dot" style="background:#3dffa0"></span> solution</span>
+        <span><span class="legend-dot" style="background:#b47aff"></span> code_module</span>
+        <span><span class="legend-dot" style="background:#ffb347"></span> project</span>
+        <span><span class="legend-dot" style="background:#5b9cff"></span> rule</span>
+        <span style="margin-left:auto;color:var(--text3);font-size:.72rem">edges: co_occurs / solves / uses_module / depends_on</span>
       </div>
       <div id="graph-tooltip" class="graph-tooltip"></div>
     </div>
@@ -564,7 +565,7 @@ setTimeout(() => {
   });
 }, 500);
 
-// --- Synapse Force-Directed Graph ---
+// --- Synapse Force-Directed Graph (Premium) ---
 (function(){
   const edges = ${JSON.stringify(synapseEdges.map((e: SynapseEdge) => ({ s: e.source, t: e.target, type: e.type, w: e.weight })))};
   const canvas = document.getElementById('synapse-graph');
@@ -572,10 +573,16 @@ setTimeout(() => {
   const ctx = canvas.getContext('2d');
   const container = canvas.parentElement;
   let W, H, dpr;
+  let frame = 0;
 
   const NODE_COLORS = {
     error: '#ff5577', solution: '#3dffa0', code_module: '#b47aff',
     project: '#ffb347', rule: '#5b9cff', antipattern: '#ff5577'
+  };
+  const EDGE_COLORS = {
+    co_occurs: ['#5b9cff','#47e5ff'], solves: ['#3dffa0','#5bff8a'],
+    uses_module: ['#b47aff','#7a5cff'], depends_on: ['#ff5577','#ffb347'],
+    caused_by: ['#ff5577','#ff8866']
   };
   const DEFAULT_COLOR = '#47e5ff';
 
@@ -594,7 +601,7 @@ setTimeout(() => {
   function resize() {
     dpr = window.devicePixelRatio || 1;
     W = container.clientWidth;
-    H = 500;
+    H = 650;
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     canvas.style.width = W + 'px';
@@ -604,23 +611,33 @@ setTimeout(() => {
   resize();
   window.addEventListener('resize', resize);
 
-  // Random initial positions
+  // Cluster initial positions by type for better layout
+  const typeGroups = {};
   for (const n of nodes) {
-    n.x = W * 0.2 + Math.random() * W * 0.6;
-    n.y = H * 0.2 + Math.random() * H * 0.6;
+    if (!typeGroups[n.type]) typeGroups[n.type] = [];
+    typeGroups[n.type].push(n);
   }
+  const types = Object.keys(typeGroups);
+  types.forEach((t, i) => {
+    const angle = (i / types.length) * Math.PI * 2;
+    const cx = W/2 + Math.cos(angle) * W * 0.2;
+    const cy = H/2 + Math.sin(angle) * H * 0.2;
+    for (const n of typeGroups[t]) {
+      n.x = cx + (Math.random() - 0.5) * W * 0.25;
+      n.y = cy + (Math.random() - 0.5) * H * 0.25;
+    }
+  });
 
   // Force simulation
-  const REPULSION = 3000;
-  const ATTRACTION = 0.008;
-  const DAMPING = 0.85;
-  const CENTER_GRAVITY = 0.002;
+  const REPULSION = 4000;
+  const ATTRACTION = 0.006;
+  const DAMPING = 0.88;
+  const CENTER_GRAVITY = 0.0015;
   let hovered = null;
   let dragging = null;
   let dragOff = {x:0,y:0};
 
   function simulate() {
-    // Repulsion
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         let dx = nodes[i].x - nodes[j].x;
@@ -633,69 +650,101 @@ setTimeout(() => {
         nodes[j].vx -= fx; nodes[j].vy -= fy;
       }
     }
-    // Attraction along edges
     for (const e of graphEdges) {
       let dx = e.target.x - e.source.x;
       let dy = e.target.y - e.source.y;
       let dist = Math.sqrt(dx*dx + dy*dy) || 1;
-      let force = (dist - 100) * ATTRACTION * e.weight;
+      let force = (dist - 120) * ATTRACTION * e.weight;
       let fx = (dx / dist) * force;
       let fy = (dy / dist) * force;
       e.source.vx += fx; e.source.vy += fy;
       e.target.vx -= fx; e.target.vy -= fy;
     }
-    // Center gravity
     for (const n of nodes) {
       n.vx += (W/2 - n.x) * CENTER_GRAVITY;
       n.vy += (H/2 - n.y) * CENTER_GRAVITY;
     }
-    // Apply & damp
     for (const n of nodes) {
       if (n === dragging) continue;
       n.vx *= DAMPING; n.vy *= DAMPING;
       n.x += n.vx; n.y += n.vy;
-      n.x = Math.max(20, Math.min(W - 20, n.x));
-      n.y = Math.max(20, Math.min(H - 20, n.y));
+      n.x = Math.max(30, Math.min(W - 30, n.x));
+      n.y = Math.max(30, Math.min(H - 30, n.y));
     }
   }
 
-  function getNodeRadius(n) { return Math.min(16, 5 + n.connections * 1.5); }
+  function getNodeRadius(n) {
+    return Math.min(20, 4 + Math.sqrt(n.connections) * 3.5);
+  }
 
   function draw() {
+    frame++;
     ctx.clearRect(0, 0, W, H);
-    // Edges
+
+    // Edges with gradient colors per type
     for (const e of graphEdges) {
-      const alpha = 0.15 + e.weight * 0.5;
-      ctx.strokeStyle = 'rgba(91,156,255,' + Math.min(0.8, alpha) + ')';
-      ctx.lineWidth = 0.5 + e.weight * 2;
+      const alpha = 0.1 + e.weight * 0.4;
+      const colors = EDGE_COLORS[e.type] || ['#5b9cff','#47e5ff'];
+      const grad = ctx.createLinearGradient(e.source.x, e.source.y, e.target.x, e.target.y);
+      grad.addColorStop(0, colors[0] + Math.round(Math.min(0.7,alpha)*255).toString(16).padStart(2,'0'));
+      grad.addColorStop(1, colors[1] + Math.round(Math.min(0.7,alpha)*255).toString(16).padStart(2,'0'));
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 0.5 + e.weight * 2.5;
       ctx.beginPath();
       ctx.moveTo(e.source.x, e.source.y);
       ctx.lineTo(e.target.x, e.target.y);
       ctx.stroke();
     }
-    // Nodes
+
+    // Nodes with ambient glow + pulse on hubs
     for (const n of nodes) {
       const r = getNodeRadius(n);
       const color = NODE_COLORS[n.type] || DEFAULT_COLOR;
       const isHover = n === hovered || n === dragging;
-      // Glow
-      if (isHover) {
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 20;
+      const isHub = n.connections >= 5;
+
+      // Ambient glow for all nodes
+      const glowSize = isHover ? 30 : (isHub ? 15 + Math.sin(frame * 0.03 + n.x) * 5 : 8);
+      ctx.shadowColor = color;
+      ctx.shadowBlur = glowSize;
+
+      // Outer ring for hubs
+      if (isHub || isHover) {
+        const pulseR = r + 3 + (isHub ? Math.sin(frame * 0.04 + n.y) * 2 : 0);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = isHover ? 0.6 : 0.25;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, pulseR, 0, Math.PI * 2);
+        ctx.stroke();
       }
+
+      // Core node
+      ctx.globalAlpha = isHover ? 1 : 0.85;
       ctx.fillStyle = color;
-      ctx.globalAlpha = isHover ? 1 : 0.8;
       ctx.beginPath();
       ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
       ctx.fill();
+
+      // Inner highlight (glossy effect)
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(n.x - r * 0.25, n.y - r * 0.25, r * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
-      // Label for hovered or large nodes
+
+      // Labels
       if (isHover || n.connections >= 4) {
+        const label = n.type === 'project' ? n.id.replace('project:','P') : n.id.split(':')[0];
         ctx.fillStyle = '#e8eaf6';
-        ctx.font = (isHover ? 'bold ' : '') + '11px Inter, system-ui, sans-serif';
+        ctx.font = (isHover ? 'bold 12px' : '10px') + ' Inter, system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(n.id, n.x, n.y - r - 6);
+        ctx.globalAlpha = isHover ? 1 : 0.7;
+        ctx.fillText(isHover ? n.id : label, n.x, n.y - r - 8);
+        ctx.globalAlpha = 1;
       }
     }
     simulate();
@@ -729,7 +778,10 @@ setTimeout(() => {
     canvas.style.cursor = n ? 'pointer' : 'grab';
     if (n) {
       const conns = graphEdges.filter(e => e.source === n || e.target === n);
-      tooltip.innerHTML = '<strong>' + n.id + '</strong><br>' + conns.length + ' connections';
+      const types = {};
+      conns.forEach(c => { types[c.type] = (types[c.type]||0)+1; });
+      const typeStr = Object.entries(types).map(([t,c]) => t+': '+c).join(', ');
+      tooltip.innerHTML = '<strong>' + n.id + '</strong><br>' + conns.length + ' connections<br><span style="color:var(--text3);font-size:.75rem">' + typeStr + '</span>';
       tooltip.style.display = 'block';
       tooltip.style.left = (p.x + 15) + 'px';
       tooltip.style.top = (p.y - 10) + 'px';

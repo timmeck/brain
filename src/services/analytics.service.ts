@@ -207,11 +207,14 @@ export class AnalyticsService {
 
   getNetworkOverview(limit: number = 10): NetworkOverview {
     const stats = this.synapseManager.getNetworkStats();
-    const strongest = this.synapseManager.getStrongestSynapses(limit);
+    // Use diverse sampling for dashboard (spread across synapse types)
+    const diverse = limit >= 30
+      ? this.synapseManager.getDiverseSynapses(Math.ceil(limit / 3))
+      : this.synapseManager.getStrongestSynapses(limit);
 
     return {
       stats,
-      strongestSynapses: strongest.map(s => ({
+      strongestSynapses: diverse.map(s => ({
         id: s.id,
         source: `${s.source_type}:${s.source_id}`,
         target: `${s.target_type}:${s.target_id}`,

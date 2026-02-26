@@ -97,6 +97,10 @@ export class SynapseManager {
     return this.repo.topByWeight(limit);
   }
 
+  getDiverseSynapses(perType: number = 25): SynapseRecord[] {
+    return this.repo.topDiverse(perType);
+  }
+
   getNetworkStats(): NetworkStats {
     return {
       totalNodes: this.repo.countNodes(),
