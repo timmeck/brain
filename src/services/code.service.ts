@@ -140,4 +140,16 @@ export class CodeService {
   getById(id: number): CodeModuleRecord | undefined {
     return this.codeModuleRepo.getById(id);
   }
+
+  listProjects(): Array<{ id: number; name: string; path: string | null; language: string | null; framework: string | null; moduleCount: number }> {
+    const projects = this.projectRepo.getAll();
+    return projects.map(p => ({
+      id: p.id,
+      name: p.name,
+      path: p.path,
+      language: p.language,
+      framework: p.framework,
+      moduleCount: this.codeModuleRepo.findByProject(p.id).length,
+    }));
+  }
 }

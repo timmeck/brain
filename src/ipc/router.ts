@@ -74,6 +74,9 @@ export class IpcRouter {
       ['solution.rate',           (params) => s.solution.rateOutcome(p(params))],
       ['solution.attempt',        (params) => s.solution.rateOutcome({ ...p(params), success: false })],
 
+      // Projects
+      ['project.list',            () => s.code.listProjects()],
+
       // Code Brain
       ['code.analyze',            (params) => s.code.analyzeAndRegister(p(params))],
       ['code.find',               (params) => s.code.findReusable(p(params))],
