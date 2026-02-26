@@ -14,6 +14,22 @@ export class ErrorRepository {
         INSERT INTO errors (project_id, terminal_id, fingerprint, type, message, raw_output, context, file_path, line_number, column_number)
         VALUES (@project_id, @terminal_id, @fingerprint, @type, @message, @raw_output, @context, @file_path, @line_number, @column_number)
       `),
+      createChain: this.db.prepare(`
+        INSERT OR IGNORE INTO error_chains (parent_error_id, child_error_id, relationship)
+        VALUES (@parent_error_id, @child_error_id, @relationship)
+      `),
+      findChainChildren: this.db.prepare(
+        'SELECT e.* FROM errors e JOIN error_chains ec ON e.id = ec.child_error_id WHERE ec.parent_error_id = ?'
+      ),
+      findChainParents: this.db.prepare(
+        'SELECT e.* FROM errors e JOIN error_chains ec ON e.id = ec.parent_error_id WHERE ec.child_error_id = ?'
+      ),
+      findRecentByProject: this.db.prepare(
+        'SELECT * FROM errors WHERE project_id = ? AND first_seen >= ? ORDER BY first_seen DESC LIMIT ?'
+      ),
+      findAllPaginated: this.db.prepare(
+        'SELECT * FROM errors ORDER BY last_seen DESC LIMIT ? OFFSET ?'
+      ),
       getById: this.db.prepare(`
         SELECT * FROM errors WHERE id = ?
       `),
@@ -145,5 +161,29 @@ export class ErrorRepository {
 
   incrementOccurrence(id: number): void {
     this.stmts.incrementOccurrence.run(id);
+  }
+
+  createChain(parentErrorId: number, childErrorId: number, relationship: string = 'caused_by_fix'): void {
+    this.stmts.createChain.run({
+      parent_error_id: parentErrorId,
+      child_error_id: childErrorId,
+      relationship,
+    });
+  }
+
+  findChainChildren(errorId: number): ErrorRecord[] {
+    return this.stmts.findChainChildren.all(errorId) as ErrorRecord[];
+  }
+
+  findChainParents(errorId: number): ErrorRecord[] {
+    return this.stmts.findChainParents.all(errorId) as ErrorRecord[];
+  }
+
+  findRecentByProject(projectId: number, since: string, limit: number = 10): ErrorRecord[] {
+    return this.stmts.findRecentByProject.all(projectId, since, limit) as ErrorRecord[];
+  }
+
+  findAll(limit: number = 100, offset: number = 0): ErrorRecord[] {
+    return this.stmts.findAllPaginated.all(limit, offset) as ErrorRecord[];
   }
 }

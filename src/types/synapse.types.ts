@@ -5,6 +5,7 @@ export type SynapseType =
   | 'causes'
   | 'similar_to'
   | 'uses_module'
+  | 'depends_on'
   | 'derived_from'
   | 'co_occurs'
   | 'prevents'

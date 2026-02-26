@@ -105,6 +105,46 @@ export class PreventionService {
     });
   }
 
+  checkCodeForPatterns(source: string, filePath?: string): { warnings: Array<{ message: string; severity: string; ruleId?: number }> } {
+    const warnings: Array<{ message: string; severity: string; ruleId?: number }> = [];
+
+    // Check antipatterns against the code itself
+    const globalAntipatterns = this.antipatternRepo.findGlobal();
+    for (const ap of globalAntipatterns) {
+      try {
+        const pattern = new RegExp(ap.pattern, 'i');
+        if (pattern.test(source)) {
+          warnings.push({
+            message: `Code matches known error pattern: ${ap.description}${ap.suggestion ? `. Suggestion: ${ap.suggestion}` : ''}`,
+            severity: ap.severity,
+            ruleId: undefined,
+          });
+        }
+      } catch {
+        // Invalid regex, skip
+      }
+    }
+
+    // Check active rules
+    const rules = this.ruleRepo.findActive();
+    for (const rule of rules) {
+      try {
+        const pattern = new RegExp(rule.pattern, 'i');
+        if (pattern.test(source)) {
+          warnings.push({
+            message: `Code matches learned rule: ${rule.description ?? rule.pattern}. Action: ${rule.action}`,
+            severity: 'warning',
+            ruleId: rule.id,
+          });
+        }
+      } catch {
+        // Invalid regex, skip
+      }
+    }
+
+    return { warnings: warnings.slice(0, 5) };
+  }
+
   reportPrevention(ruleId: number, errorId: number): void {
     const rule = this.ruleRepo.getById(ruleId);
     if (rule) {

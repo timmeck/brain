@@ -10,6 +10,21 @@ const defaults: BrainConfig = {
     pipeName: getPipeName(),
     timeout: 5000,
   },
+  api: {
+    port: 7777,
+    enabled: true,
+  },
+  mcpHttp: {
+    port: 7778,
+    enabled: true,
+  },
+  embeddings: {
+    enabled: true,
+    modelName: 'Xenova/all-MiniLM-L6-v2',
+    cacheDir: path.join(getDataDir(), 'models'),
+    sweepIntervalMs: 300_000, // 5 minutes
+    batchSize: 50,
+  },
   learning: {
     intervalMs: 900_000,
     minOccurrences: 3,
@@ -27,6 +42,8 @@ const defaults: BrainConfig = {
     fingerprintFields: ['type', 'message', 'file_path'],
     similarityThreshold: 0.8,
     maxResults: 10,
+    crossProjectMatching: true,
+    crossProjectWeight: 0.7,
   },
   code: {
     supportedLanguages: ['typescript', 'javascript', 'python', 'rust', 'go'],
@@ -74,6 +91,13 @@ function applyEnvOverrides(config: BrainConfig): void {
   if (process.env['BRAIN_DB_PATH']) config.dbPath = process.env['BRAIN_DB_PATH'];
   if (process.env['BRAIN_LOG_LEVEL']) config.log.level = process.env['BRAIN_LOG_LEVEL'];
   if (process.env['BRAIN_PIPE_NAME']) config.ipc.pipeName = process.env['BRAIN_PIPE_NAME'];
+  if (process.env['BRAIN_API_PORT']) config.api.port = Number(process.env['BRAIN_API_PORT']);
+  if (process.env['BRAIN_API_ENABLED']) config.api.enabled = process.env['BRAIN_API_ENABLED'] !== 'false';
+  if (process.env['BRAIN_API_KEY']) config.api.apiKey = process.env['BRAIN_API_KEY'];
+  if (process.env['BRAIN_MCP_HTTP_PORT']) config.mcpHttp.port = Number(process.env['BRAIN_MCP_HTTP_PORT']);
+  if (process.env['BRAIN_MCP_HTTP_ENABLED']) config.mcpHttp.enabled = process.env['BRAIN_MCP_HTTP_ENABLED'] !== 'false';
+  if (process.env['BRAIN_EMBEDDINGS_ENABLED']) config.embeddings.enabled = process.env['BRAIN_EMBEDDINGS_ENABLED'] !== 'false';
+  if (process.env['BRAIN_EMBEDDINGS_MODEL']) config.embeddings.modelName = process.env['BRAIN_EMBEDDINGS_MODEL'];
 }
 
 function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): void {

@@ -95,6 +95,18 @@ async function main(): Promise<void> {
       }
     }
 
+    // Proactive Prevention: check if written code matches error-causing patterns
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prevention: any = await client.request('prevention.checkCode', {
+      source: input.tool_input.content ?? '',
+      filePath,
+    });
+    if (prevention?.warnings?.length > 0) {
+      for (const warning of prevention.warnings.slice(0, 3)) {
+        process.stderr.write(`Brain WARNING: ${warning.message}\n`);
+      }
+    }
+
     // Auto-register the written file into Brain
     const fileName = filePath.replace(/\\/g, '/').split('/').pop() ?? 'unknown';
     const projectName = detectProject(filePath);

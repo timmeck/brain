@@ -75,4 +75,25 @@ export class InsightRepository {
     const result = this.stmts.expire.run();
     return result.changes;
   }
+
+  rate(id: number, rating: number, comment?: string): boolean {
+    const stmt = this.db.prepare(
+      `UPDATE insights SET rating = ?, rating_comment = ?, rated_at = datetime('now') WHERE id = ?`
+    );
+    const result = stmt.run(rating, comment ?? null, id);
+    return result.changes > 0;
+  }
+
+  findRated(minRating?: number): InsightRecord[] {
+    if (minRating !== undefined) {
+      const stmt = this.db.prepare(
+        'SELECT * FROM insights WHERE rating IS NOT NULL AND rating >= ? ORDER BY rating DESC'
+      );
+      return stmt.all(minRating) as InsightRecord[];
+    }
+    const stmt = this.db.prepare(
+      'SELECT * FROM insights WHERE rating IS NOT NULL ORDER BY rating DESC'
+    );
+    return stmt.all() as InsightRecord[];
+  }
 }

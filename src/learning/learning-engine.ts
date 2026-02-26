@@ -7,6 +7,7 @@ import type { SynapseManager } from '../synapses/synapse-manager.js';
 import { extractPatterns } from './pattern-extractor.js';
 import { generateRules, persistRules } from './rule-generator.js';
 import { shouldPruneRule } from './decay.js';
+import { computeAdaptiveThresholds, type AdaptiveThresholds } from './confidence-scorer.js';
 import { getLogger } from '../utils/logger.js';
 
 export interface LearningCycleResult {
@@ -56,12 +57,18 @@ export class LearningEngine {
       duration: 0,
     };
 
+    // Phase 0: Compute adaptive thresholds
+    const totalErrors = this.errorRepo.findUnresolved().length + this.errorRepo.countSince(new Date(0).toISOString());
+    const totalSolutions = this.solutionRepo.getAll().length;
+    const adaptive = computeAdaptiveThresholds(totalErrors, totalSolutions, this.config);
+    this.logger.debug(`Adaptive thresholds: minOcc=${adaptive.minOccurrences}, minSuccess=${adaptive.minSuccessRate.toFixed(2)}, minConf=${adaptive.minConfidence.toFixed(2)}`);
+
     // Phase 1: Collect recent errors
     const since = this.lastCycleAt ?? new Date(Date.now() - this.config.intervalMs).toISOString();
     const recentErrors = this.errorRepo.findUnresolved();
 
     // Phase 2: Extract patterns
-    const patterns = extractPatterns(recentErrors, 0.7);
+    const patterns = extractPatterns(recentErrors, adaptive.minSuccessRate);
     result.newPatterns = patterns.length;
 
     // Phase 3: Enrich patterns with solution data
@@ -87,18 +94,19 @@ export class LearningEngine {
       );
     }
 
-    // Phase 4: Generate rules from patterns
-    const rules = generateRules(patterns, this.config);
+    // Phase 4: Generate rules from patterns (using adaptive thresholds)
+    const adaptiveConfig = { ...this.config, ...adaptive };
+    const rules = generateRules(patterns, adaptiveConfig);
     result.updatedRules = persistRules(rules, this.ruleRepo);
 
-    // Phase 5: Prune weak rules
+    // Phase 5: Prune weak rules (using adaptive thresholds)
     const activeRules = this.ruleRepo.findActive();
     for (const rule of activeRules) {
       if (shouldPruneRule(
         rule.confidence,
         0, // rejection count not tracked yet
         rule.occurrences,
-        this.config.pruneThreshold,
+        adaptive.pruneThreshold,
         this.config.maxRejectionRate,
       )) {
         this.ruleRepo.update(rule.id, { active: 0 });

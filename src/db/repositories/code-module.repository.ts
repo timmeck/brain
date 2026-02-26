@@ -26,6 +26,33 @@ export class CodeModuleRepository {
         WHERE code_modules_fts MATCH ?
         ORDER BY rank
       `),
+      upsertSimilarity: db.prepare(`
+        INSERT INTO module_similarities (module_a_id, module_b_id, similarity_score)
+        VALUES (@module_a_id, @module_b_id, @similarity_score)
+        ON CONFLICT(module_a_id, module_b_id)
+        DO UPDATE SET similarity_score = @similarity_score, computed_at = datetime('now')
+      `),
+      findSimilarModules: db.prepare(`
+        SELECT ms.*, cm.name, cm.file_path, cm.language, cm.reusability_score
+        FROM module_similarities ms
+        JOIN code_modules cm ON (
+          CASE WHEN ms.module_a_id = ? THEN ms.module_b_id ELSE ms.module_a_id END
+        ) = cm.id
+        WHERE ms.module_a_id = ? OR ms.module_b_id = ?
+        ORDER BY ms.similarity_score DESC
+        LIMIT ?
+      `),
+      findHighSimilarityPairs: db.prepare(`
+        SELECT ms.*,
+          a.name as a_name, a.file_path as a_path,
+          b.name as b_name, b.file_path as b_path
+        FROM module_similarities ms
+        JOIN code_modules a ON ms.module_a_id = a.id
+        JOIN code_modules b ON ms.module_b_id = b.id
+        WHERE ms.similarity_score >= ?
+        ORDER BY ms.similarity_score DESC
+        LIMIT ?
+      `),
     };
   }
 
@@ -85,5 +112,31 @@ export class CodeModuleRepository {
 
   countAll(): number {
     return (this.stmts.countAll.get() as { count: number }).count;
+  }
+
+  upsertSimilarity(moduleAId: number, moduleBId: number, score: number): void {
+    // Always store with smaller id first for consistency
+    const [a, b] = moduleAId < moduleBId ? [moduleAId, moduleBId] : [moduleBId, moduleAId];
+    this.stmts.upsertSimilarity.run({
+      module_a_id: a,
+      module_b_id: b,
+      similarity_score: score,
+    });
+  }
+
+  findSimilarModules(moduleId: number, limit: number = 10): Array<{ module_id: number; similarity_score: number; name: string; file_path: string }> {
+    return this.stmts.findSimilarModules.all(moduleId, moduleId, moduleId, limit) as Array<{
+      module_id: number; similarity_score: number; name: string; file_path: string;
+    }>;
+  }
+
+  findHighSimilarityPairs(minScore: number = 0.75, limit: number = 50): Array<{
+    module_a_id: number; module_b_id: number; similarity_score: number;
+    a_name: string; a_path: string; b_name: string; b_path: string;
+  }> {
+    return this.stmts.findHighSimilarityPairs.all(minScore, limit) as Array<{
+      module_a_id: number; module_b_id: number; similarity_score: number;
+      a_name: string; a_path: string; b_name: string; b_path: string;
+    }>;
   }
 }

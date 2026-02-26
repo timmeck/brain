@@ -22,6 +22,8 @@ export interface MatchingConfig {
   fingerprintFields: string[];
   similarityThreshold: number;
   maxResults: number;
+  crossProjectMatching: boolean;
+  crossProjectWeight: number;
 }
 
 export interface CodeConfig {
@@ -64,10 +66,32 @@ export interface RetentionConfig {
   insightDays: number;
 }
 
+export interface ApiConfig {
+  port: number;
+  enabled: boolean;
+  apiKey?: string;
+}
+
+export interface McpHttpConfig {
+  port: number;
+  enabled: boolean;
+}
+
+export interface EmbeddingsConfig {
+  enabled: boolean;
+  modelName: string;
+  cacheDir: string;
+  sweepIntervalMs: number;
+  batchSize: number;
+}
+
 export interface BrainConfig {
   dataDir: string;
   dbPath: string;
   ipc: IpcConfig;
+  api: ApiConfig;
+  mcpHttp: McpHttpConfig;
+  embeddings: EmbeddingsConfig;
   learning: LearningConfig;
   terminal: TerminalConfig;
   matching: MatchingConfig;

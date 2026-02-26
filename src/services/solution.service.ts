@@ -113,4 +113,62 @@ export class SolutionService {
   successRate(solutionId: number): number {
     return this.solutionRepo.successRate(solutionId);
   }
+
+  analyzeEfficiency(): {
+    avgDurationMs: number;
+    slowSolutions: Array<{ solutionId: number; avgDuration: number; description: string }>;
+    successRateOverall: number;
+    totalAttempts: number;
+  } {
+    const allSolutions = this.solutionRepo.getAll();
+    let totalDuration = 0;
+    let totalAttempts = 0;
+    let totalSuccessRate = 0;
+    let solutionCount = 0;
+    const solutionDurations: Array<{ solutionId: number; avgDuration: number; description: string }> = [];
+
+    for (const solution of allSolutions) {
+      const rate = this.solutionRepo.successRate(solution.id);
+      if (solution.success_count + solution.fail_count > 0) {
+        totalSuccessRate += rate;
+        solutionCount++;
+      }
+
+      // Check attempts for duration data
+      const attempts = this.solutionRepo.getAttempts(solution.id);
+      if (attempts.length > 0) {
+        let solDuration = 0;
+        let solAttemptCount = 0;
+        for (const attempt of attempts) {
+          if (attempt.duration_ms && attempt.duration_ms > 0) {
+            solDuration += attempt.duration_ms;
+            solAttemptCount++;
+            totalDuration += attempt.duration_ms;
+            totalAttempts++;
+          }
+        }
+        if (solAttemptCount > 0) {
+          solutionDurations.push({
+            solutionId: solution.id,
+            avgDuration: solDuration / solAttemptCount,
+            description: solution.description,
+          });
+        }
+      }
+    }
+
+    // Find slow solutions (above 2x average)
+    const avgDurationMs = totalAttempts > 0 ? totalDuration / totalAttempts : 0;
+    const slowSolutions = solutionDurations
+      .filter(s => s.avgDuration > avgDurationMs * 2)
+      .sort((a, b) => b.avgDuration - a.avgDuration)
+      .slice(0, 10);
+
+    return {
+      avgDurationMs,
+      slowSolutions,
+      successRateOverall: solutionCount > 0 ? totalSuccessRate / solutionCount : 0,
+      totalAttempts,
+    };
+  }
 }

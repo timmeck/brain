@@ -30,6 +30,7 @@ import { SynapseService } from './services/synapse.service.js';
 import { ResearchService } from './services/research.service.js';
 import { NotificationService } from './services/notification.service.js';
 import { AnalyticsService } from './services/analytics.service.js';
+import { GitService } from './services/git.service.js';
 
 // Synapses
 import { SynapseManager } from './synapses/synapse-manager.js';
@@ -42,9 +43,19 @@ import { ResearchEngine } from './research/research-engine.js';
 import { IpcRouter, type Services } from './ipc/router.js';
 import { IpcServer } from './ipc/server.js';
 
+// API & MCP HTTP
+import { ApiServer } from './api/server.js';
+import { McpHttpServer } from './mcp/http-server.js';
+
+// Embeddings
+import { EmbeddingEngine } from './embeddings/engine.js';
+
 export class BrainCore {
   private db: Database.Database | null = null;
   private ipcServer: IpcServer | null = null;
+  private apiServer: ApiServer | null = null;
+  private mcpHttpServer: McpHttpServer | null = null;
+  private embeddingEngine: EmbeddingEngine | null = null;
   private learningEngine: LearningEngine | null = null;
   private researchEngine: ResearchEngine | null = null;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
@@ -89,7 +100,7 @@ export class BrainCore {
 
     // 7. Services
     const services: Services = {
-      error: new ErrorService(errorRepo, projectRepo, synapseManager),
+      error: new ErrorService(errorRepo, projectRepo, synapseManager, config.matching),
       solution: new SolutionService(solutionRepo, synapseManager),
       terminal: new TerminalService(terminalRepo, config.terminal.staleTimeout),
       prevention: new PreventionService(ruleRepo, antipatternRepo, synapseManager),
@@ -102,9 +113,19 @@ export class BrainCore {
         ruleRepo, antipatternRepo, insightRepo,
         synapseManager,
       ),
+      git: new GitService(this.db!, synapseManager),
     };
 
-    // 8. Learning Engine
+    // 8. Embedding Engine (local vector search)
+    if (config.embeddings.enabled) {
+      this.embeddingEngine = new EmbeddingEngine(config.embeddings, this.db!);
+      this.embeddingEngine.start();
+      // Wire embedding engine into error service for hybrid search
+      services.error.setEmbeddingEngine(this.embeddingEngine);
+      logger.info('Embedding engine started (model will load in background)');
+    }
+
+    // 9. Learning Engine
     this.learningEngine = new LearningEngine(
       config.learning, errorRepo, solutionRepo,
       ruleRepo, antipatternRepo, synapseManager,
@@ -112,7 +133,7 @@ export class BrainCore {
     this.learningEngine.start();
     logger.info(`Learning engine started (interval: ${config.learning.intervalMs}ms)`);
 
-    // 9. Research Engine
+    // 10. Research Engine
     this.researchEngine = new ResearchEngine(
       config.research, errorRepo, solutionRepo, projectRepo,
       codeModuleRepo, synapseRepo, insightRepo, synapseManager,
@@ -123,24 +144,42 @@ export class BrainCore {
     // Expose learning engine to IPC
     services.learning = this.learningEngine;
 
-    // 10. IPC Server
+    // 11. IPC Server
     const router = new IpcRouter(services);
     this.ipcServer = new IpcServer(router, config.ipc.pipeName);
     this.ipcServer.start();
 
-    // 11. Terminal cleanup timer
+    // 11a. REST API Server
+    if (config.api.enabled) {
+      this.apiServer = new ApiServer({
+        port: config.api.port,
+        router,
+        apiKey: config.api.apiKey,
+      });
+      this.apiServer.start();
+      logger.info(`REST API enabled on port ${config.api.port}`);
+    }
+
+    // 11b. MCP HTTP Server (SSE transport for Cursor, Windsurf, Cline, Continue)
+    if (config.mcpHttp.enabled) {
+      this.mcpHttpServer = new McpHttpServer(config.mcpHttp.port, router);
+      this.mcpHttpServer.start();
+      logger.info(`MCP HTTP (SSE) enabled on port ${config.mcpHttp.port}`);
+    }
+
+    // 12. Terminal cleanup timer
     this.cleanupTimer = setInterval(() => {
       services.terminal.cleanup();
     }, 60_000);
 
-    // 12. Event listeners (synapse wiring)
+    // 13. Event listeners (synapse wiring)
     this.setupEventListeners(services, synapseManager);
 
-    // 13. PID file
+    // 14. PID file
     const pidPath = path.join(path.dirname(config.dbPath), 'brain.pid');
     fs.writeFileSync(pidPath, String(process.pid));
 
-    // 14. Graceful shutdown
+    // 15. Graceful shutdown
     process.on('SIGINT', () => this.stop());
     process.on('SIGTERM', () => this.stop());
 
@@ -157,7 +196,10 @@ export class BrainCore {
     }
 
     this.researchEngine?.stop();
+    this.embeddingEngine?.stop();
     this.learningEngine?.stop();
+    this.mcpHttpServer?.stop();
+    this.apiServer?.stop();
     this.ipcServer?.stop();
     this.db?.close();
 

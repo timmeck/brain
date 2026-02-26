@@ -6,7 +6,7 @@ import { analyzeCode } from '../code/analyzer.js';
 import { fingerprintCode } from '../code/fingerprint.js';
 import { computeReusabilityScore } from '../code/scorer.js';
 import { detectGranularity } from '../code/registry.js';
-import { findExactMatches, findSemanticMatches } from '../code/matcher.js';
+import { findExactMatches, findSemanticMatches, findStructuralMatches } from '../code/matcher.js';
 import { sha256 } from '../utils/hash.js';
 import { getEventBus } from '../utils/events.js';
 import { getLogger } from '../utils/logger.js';
@@ -53,10 +53,39 @@ export class CodeService {
     // Check if module already exists (by fingerprint)
     const existing = this.codeModuleRepo.findByFingerprint(fingerprint);
     if (existing) {
+      // Source Hash Change Detection: compare hash to decide if re-analysis needed
+      if (existing.source_hash === sourceHash) {
+        // Unchanged — skip re-analysis
+        this.logger.debug(`Module ${existing.name} unchanged (hash match), skipping`);
+        this.synapseManager.strengthen(
+          { type: 'code_module', id: existing.id },
+          { type: 'project', id: project.id },
+          'uses_module',
+        );
+        return { moduleId: existing.id, isNew: false, reusabilityScore: existing.reusability_score };
+      }
+
+      // Hash changed — re-analyze
+      this.logger.info(`Module ${existing.name} changed (hash drift), re-analyzing`);
+      const reScore = computeReusabilityScore({
+        source: input.source,
+        filePath: input.filePath,
+        exports: analysis.exports,
+        internalDeps: analysis.internalDeps,
+        hasTypeAnnotations: analysis.hasTypeAnnotations,
+        complexity: analysis.complexity,
+      });
+
       this.codeModuleRepo.update(existing.id, {
         source_hash: sourceHash,
+        lines_of_code: analysis.linesOfCode,
+        complexity: analysis.complexity,
+        reusability_score: reScore,
         updated_at: new Date().toISOString(),
       });
+
+      // Re-index dependency synapses on change
+      this.indexDependencySynapses(existing.id, analysis.internalDeps, project.id);
 
       this.synapseManager.strengthen(
         { type: 'code_module', id: existing.id },
@@ -64,16 +93,19 @@ export class CodeService {
         'uses_module',
       );
 
-      return { moduleId: existing.id, isNew: false, reusabilityScore: existing.reusability_score };
+      this.eventBus.emit('module:updated', { moduleId: existing.id });
+
+      return { moduleId: existing.id, isNew: false, reusabilityScore: reScore };
     }
 
-    // Compute reusability score
+    // Compute reusability score (with complexity)
     const reusabilityScore = computeReusabilityScore({
       source: input.source,
       filePath: input.filePath,
       exports: analysis.exports,
       internalDeps: analysis.internalDeps,
       hasTypeAnnotations: analysis.hasTypeAnnotations,
+      complexity: analysis.complexity,
     });
 
     const granularity = detectGranularity(input.source, input.language);
@@ -87,7 +119,7 @@ export class CodeService {
       description: input.description ?? null,
       source_hash: sourceHash,
       lines_of_code: analysis.linesOfCode,
-      complexity: null,
+      complexity: analysis.complexity,
       reusability_score: reusabilityScore,
     });
 
@@ -97,6 +129,12 @@ export class CodeService {
       { type: 'project', id: project.id },
       'uses_module',
     );
+
+    // Create dependency synapses for internal imports
+    this.indexDependencySynapses(moduleId, analysis.internalDeps, project.id);
+
+    // Compute and store pairwise module similarities
+    this.computeModuleSimilarities(moduleId, input.source, input.language);
 
     this.eventBus.emit('module:registered', { moduleId, projectId: project.id });
     this.logger.info(`Code module registered (id=${moduleId}, name=${input.name}, granularity=${granularity}, score=${reusabilityScore.toFixed(2)})`);
@@ -139,6 +177,51 @@ export class CodeService {
 
   getById(id: number): CodeModuleRecord | undefined {
     return this.codeModuleRepo.getById(id);
+  }
+
+  private computeModuleSimilarities(moduleId: number, source: string, language: string): void {
+    const allModules = this.codeModuleRepo.findByLanguage(language, 100);
+    const candidates = allModules.filter(m => m.id !== moduleId);
+    if (candidates.length === 0) return;
+
+    const matches = findStructuralMatches(source, language, candidates, 0.3);
+
+    for (const match of matches) {
+      if (match.score >= 0.3 && match.moduleId !== moduleId) {
+        this.codeModuleRepo.upsertSimilarity(moduleId, match.moduleId, match.score);
+
+        // High similarity → create synapse
+        if (match.score >= 0.7) {
+          this.synapseManager.strengthen(
+            { type: 'code_module', id: moduleId },
+            { type: 'code_module', id: match.moduleId },
+            'similar_to',
+          );
+        }
+      }
+    }
+  }
+
+  private indexDependencySynapses(moduleId: number, internalDeps: string[], projectId: number): void {
+    const projectModules = this.codeModuleRepo.findByProject(projectId);
+
+    for (const dep of internalDeps) {
+      // Normalize the dep path to match against registered modules
+      const depName = dep.replace(/^\.\//, '').replace(/\.\w+$/, '');
+
+      const target = projectModules.find(m => {
+        const modulePath = m.file_path.replace(/\\/g, '/').replace(/\.\w+$/, '');
+        return modulePath.endsWith(depName) || m.name === depName;
+      });
+
+      if (target && target.id !== moduleId) {
+        this.synapseManager.strengthen(
+          { type: 'code_module', id: moduleId },
+          { type: 'code_module', id: target.id },
+          'depends_on',
+        );
+      }
+    }
   }
 
   listProjects(): Array<{ id: number; name: string; path: string | null; language: string | null; framework: string | null; moduleCount: number }> {

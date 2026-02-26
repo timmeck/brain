@@ -1,12 +1,12 @@
 import type { CodeModuleRecord } from '../types/code.types.js';
 import { fingerprintCode } from './fingerprint.js';
 import { tokenize } from '../matching/tokenizer.js';
-import { cosineSimilarity, jaccardSimilarity } from '../matching/similarity.js';
+import { cosineSimilarity } from '../matching/similarity.js';
 
 export interface CodeMatchResult {
   moduleId: number;
   score: number;
-  matchType: 'exact' | 'structural' | 'semantic';
+  matchType: 'exact' | 'structural' | 'semantic' | 'vector';
 }
 
 export function findExactMatches(
@@ -61,4 +61,69 @@ export function findSemanticMatches(
     })
     .filter(r => r.score >= threshold)
     .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Find matches using pre-computed vector embeddings.
+ * Vector scores are computed externally (by the EmbeddingEngine) and passed in.
+ */
+export function findVectorMatches(
+  vectorScores: Map<number, number>,
+  threshold: number = 0.5,
+): CodeMatchResult[] {
+  const results: CodeMatchResult[] = [];
+
+  for (const [moduleId, score] of vectorScores) {
+    if (score >= threshold) {
+      results.push({ moduleId, score, matchType: 'vector' });
+    }
+  }
+
+  return results.sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Hybrid search: combine structural + semantic + vector matches,
+ * deduplicating and taking the highest score per module.
+ */
+export function findHybridMatches(
+  source: string,
+  language: string,
+  description: string,
+  candidates: CodeModuleRecord[],
+  vectorScores?: Map<number, number>,
+): CodeMatchResult[] {
+  const scoreMap = new Map<number, CodeMatchResult>();
+
+  // Structural matches (highest priority)
+  for (const match of findStructuralMatches(source, language, candidates, 0.5)) {
+    const existing = scoreMap.get(match.moduleId);
+    if (!existing || match.score > existing.score) {
+      scoreMap.set(match.moduleId, match);
+    }
+  }
+
+  // Semantic matches
+  for (const match of findSemanticMatches(description, candidates, 0.3)) {
+    const existing = scoreMap.get(match.moduleId);
+    if (!existing || match.score > existing.score) {
+      scoreMap.set(match.moduleId, match);
+    }
+  }
+
+  // Vector matches (if available)
+  if (vectorScores && vectorScores.size > 0) {
+    for (const match of findVectorMatches(vectorScores, 0.4)) {
+      const existing = scoreMap.get(match.moduleId);
+      if (!existing) {
+        scoreMap.set(match.moduleId, match);
+      } else {
+        // Boost existing matches that also have high vector similarity
+        const vectorBoost = match.score * 0.15;
+        existing.score = Math.min(1.0, existing.score + vectorBoost);
+      }
+    }
+  }
+
+  return [...scoreMap.values()].sort((a, b) => b.score - a.score);
 }

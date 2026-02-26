@@ -90,4 +90,9 @@ export class ResearchService {
   expireOldInsights(): number {
     return this.insightRepo.expire();
   }
+
+  rateInsight(id: number, rating: number, comment?: string): boolean {
+    const clamped = Math.max(-1, Math.min(1, rating)); // -1 (bad), 0 (neutral), 1 (useful)
+    return this.insightRepo.rate(id, clamped, comment);
+  }
 }

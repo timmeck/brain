@@ -10,6 +10,7 @@ import type { SynapseService } from '../services/synapse.service.js';
 import type { ResearchService } from '../services/research.service.js';
 import type { NotificationService } from '../services/notification.service.js';
 import type { AnalyticsService } from '../services/analytics.service.js';
+import type { GitService } from '../services/git.service.js';
 import type { LearningEngine, LearningCycleResult } from '../learning/learning-engine.js';
 
 export interface Services {
@@ -22,6 +23,7 @@ export interface Services {
   research: ResearchService;
   notification: NotificationService;
   analytics: AnalyticsService;
+  git: GitService;
   learning?: LearningEngine;
 }
 
@@ -67,12 +69,14 @@ export class IpcRouter {
       ['error.match',             (params) => s.error.matchSimilar(p(params).error_id ?? p(params).errorId)],
       ['error.resolve',           (params) => s.error.resolve(p(params).error_id ?? p(params).errorId, p(params).solution_id ?? p(params).solutionId)],
       ['error.get',               (params) => s.error.getById(p(params).id)],
+      ['error.chain',             (params) => s.error.getErrorChain(p(params).error_id ?? p(params).errorId ?? p(params).id)],
 
       // Solutions
       ['solution.report',         (params) => s.solution.report(p(params))],
       ['solution.query',          (params) => s.solution.findForError(p(params).error_id ?? p(params).errorId)],
       ['solution.rate',           (params) => s.solution.rateOutcome(p(params))],
       ['solution.attempt',        (params) => s.solution.rateOutcome({ ...p(params), success: false })],
+      ['solution.efficiency',     () => s.solution.analyzeEfficiency()],
 
       // Projects
       ['project.list',            () => s.code.listProjects()],
@@ -87,6 +91,7 @@ export class IpcRouter {
       // Prevention
       ['prevention.check',        (params) => s.prevention.checkRules(p(params).errorType, p(params).message, p(params).projectId)],
       ['prevention.antipatterns',  (params) => s.prevention.checkAntipatterns(p(params).errorType ?? '', p(params).message ?? p(params).error_output ?? '', p(params).projectId)],
+      ['prevention.checkCode',    (params) => s.prevention.checkCodeForPatterns(p(params).source, p(params).filePath)],
 
       // Synapses
       ['synapse.context',         (params) => s.synapse.getErrorContext(p(params).errorId ?? p(params).error_id ?? p(params).node_id)],
@@ -96,6 +101,7 @@ export class IpcRouter {
 
       // Research / Insights
       ['research.insights',       (params) => s.research.getInsights(p(params))],
+      ['insight.rate',            (params) => s.research.rateInsight(p(params).id, p(params).rating, p(params).comment)],
       ['research.suggest',        (params) => s.research.getInsights({ limit: 10, activeOnly: true, ...p(params) })],
       ['research.trends',         (params) => s.research.getTrends(p(params)?.projectId, p(params)?.windowDays)],
 
@@ -106,6 +112,16 @@ export class IpcRouter {
       // Analytics
       ['analytics.summary',       (params) => s.analytics.getSummary(p(params)?.projectId)],
       ['analytics.network',       (params) => s.analytics.getNetworkOverview(p(params)?.limit)],
+      ['analytics.health',        (params) => s.analytics.computeHealthScore(p(params)?.projectId)],
+      ['analytics.timeline',      (params) => s.analytics.getTimeSeries(p(params)?.projectId, p(params)?.days)],
+      ['analytics.explain',       (params) => s.analytics.explainError(p(params).errorId ?? p(params).error_id)],
+
+      // Git
+      ['git.context',             (params) => s.git.getGitContext(p(params)?.cwd)],
+      ['git.linkError',           (params) => s.git.linkErrorToCommit(p(params).errorId, p(params).projectId, p(params).commitHash, p(params).relationship)],
+      ['git.errorCommits',        (params) => s.git.findIntroducingCommit(p(params).errorId ?? p(params).error_id)],
+      ['git.commitErrors',        (params) => s.git.findErrorsByCommit(p(params).commitHash ?? p(params).commit_hash)],
+      ['git.diff',                (params) => s.git.captureDiff(p(params)?.cwd)],
 
       // Learning
       ['learning.run',            () => {

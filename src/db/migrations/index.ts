@@ -6,6 +6,9 @@ import { up as codeSchema } from './003_code_schema.js';
 import { up as synapsesSchema } from './004_synapses_schema.js';
 import { up as ftsIndexes } from './005_fts_indexes.js';
 import { up as synapsesPhase3 } from './006_synapses_phase3.js';
+import { up as feedbackSchema } from './007_feedback.js';
+import { up as gitIntegration } from './008_git_integration.js';
+import { up as embeddings } from './009_embeddings.js';
 
 interface Migration {
   version: number;
@@ -20,6 +23,9 @@ const migrations: Migration[] = [
   { version: 4, name: '004_synapses_schema', up: synapsesSchema },
   { version: 5, name: '005_fts_indexes', up: ftsIndexes },
   { version: 6, name: '006_synapses_phase3', up: synapsesPhase3 },
+  { version: 7, name: '007_feedback', up: feedbackSchema },
+  { version: 8, name: '008_git_integration', up: gitIntegration },
+  { version: 9, name: '009_embeddings', up: embeddings },
 ];
 
 function ensureMigrationsTable(db: Database.Database): void {

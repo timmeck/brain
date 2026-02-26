@@ -6,6 +6,7 @@ export interface CodeUnitForScoring {
   exports: ExportInfo[];
   internalDeps: string[];
   hasTypeAnnotations: boolean;
+  complexity?: number;
 }
 
 interface ReusabilitySignal {
@@ -17,7 +18,7 @@ interface ReusabilitySignal {
 const REUSABILITY_SIGNALS: ReusabilitySignal[] = [
   {
     name: 'single_responsibility',
-    weight: 0.25,
+    weight: 0.20,
     check: (code) => {
       const count = code.exports.length;
       if (count === 0) return 0;
@@ -85,6 +86,17 @@ const REUSABILITY_SIGNALS: ReusabilitySignal[] = [
       const hasInlineComments = (code.source.match(/\/\/ /g) ?? []).length >= 2;
       if (hasJsdoc || hasDocstring) return 1.0;
       if (hasInlineComments) return 0.5;
+      return 0.1;
+    },
+  },
+  {
+    name: 'low_complexity',
+    weight: 0.10,
+    check: (code) => {
+      const cc = code.complexity ?? 1;
+      if (cc <= 5) return 1.0;
+      if (cc <= 10) return 0.7;
+      if (cc <= 20) return 0.4;
       return 0.1;
     },
   },

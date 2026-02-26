@@ -1,16 +1,29 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { IpcClient } from '../ipc/client.js';
+import type { IpcRouter } from '../ipc/router.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyResult = any;
+
+type BrainCall = (method: string, params?: unknown) => Promise<unknown> | unknown;
 
 function textResult(data: unknown): { content: Array<{ type: 'text'; text: string }> } {
   const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
   return { content: [{ type: 'text' as const, text }] };
 }
 
+/** Register tools using IPC client (for stdio MCP transport) */
 export function registerTools(server: McpServer, ipc: IpcClient): void {
+  registerToolsWithCaller(server, (method, params) => ipc.request(method, params));
+}
+
+/** Register tools using router directly (for HTTP MCP transport inside daemon) */
+export function registerToolsDirect(server: McpServer, router: IpcRouter): void {
+  registerToolsWithCaller(server, (method, params) => router.handle(method, params));
+}
+
+function registerToolsWithCaller(server: McpServer, call: BrainCall): void {
 
   // === Error Brain Tools ===
 
@@ -25,15 +38,22 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       project: z.string().optional().describe('Project name'),
     },
     async (params) => {
-      const result: AnyResult = await ipc.request('error.report', {
+      const result: AnyResult = await call('error.report', {
         project: params.project ?? 'default',
         errorOutput: params.error_output,
         filePath: params.working_directory,
+        taskContext: params.task_context,
+        workingDirectory: params.working_directory,
+        command: params.command,
       });
       let response = `Error #${result.errorId} recorded (${result.isNew ? 'new' : 'seen before'}).`;
       if (result.matches?.length > 0) {
         const best = result.matches[0];
         response += `\nSimilar error found (#${best.errorId}, ${Math.round(best.score * 100)}% match).`;
+      }
+      if (result.crossProjectMatches?.length > 0) {
+        const best = result.crossProjectMatches[0];
+        response += `\nCross-project match found (#${best.errorId}, ${Math.round(best.score * 100)}% match from another project).`;
       }
       return textResult(response);
     },
@@ -47,7 +67,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       project_only: z.boolean().optional().describe('Only search in current project'),
     },
     async (params) => {
-      const results: AnyResult = await ipc.request('error.query', {
+      const results: AnyResult = await call('error.query', {
         search: params.query,
       });
       if (!results?.length) return textResult('No matching errors found.');
@@ -68,7 +88,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       code_change: z.string().optional().describe('Code changes or diff'),
     },
     async (params) => {
-      const solutionId: AnyResult = await ipc.request('solution.report', {
+      const solutionId: AnyResult = await call('solution.report', {
         errorId: params.error_id,
         description: params.description,
         commands: params.commands,
@@ -88,7 +108,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       output: z.string().optional().describe('Output of the failed attempt'),
     },
     async (params) => {
-      await ipc.request('solution.rate', {
+      await call('solution.rate', {
         errorId: params.error_id,
         solutionId: params.solution_id,
         success: false,
@@ -108,7 +128,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       language: z.string().optional().describe('Programming language'),
     },
     async (params) => {
-      const results: AnyResult = await ipc.request('code.find', {
+      const results: AnyResult = await call('code.find', {
         query: params.purpose,
         language: params.language,
       });
@@ -132,7 +152,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       description: z.string().optional().describe('What this code does'),
     },
     async (params) => {
-      const result: AnyResult = await ipc.request('code.analyze', {
+      const result: AnyResult = await call('code.analyze', {
         project: params.project ?? 'default',
         name: params.name ?? params.file_path.split('/').pop() ?? 'unknown',
         filePath: params.file_path,
@@ -153,7 +173,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       file_path: z.string().optional().describe('File path for context'),
     },
     async (params) => {
-      const results: AnyResult = await ipc.request('code.similarity', {
+      const results: AnyResult = await call('code.similarity', {
         source: params.source_code,
         language: params.language ?? detectLanguage(params.file_path ?? ''),
       });
@@ -176,7 +196,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       max_depth: z.number().optional().describe('How many hops to follow (default: 3)'),
     },
     async (params) => {
-      const context: AnyResult = await ipc.request('synapse.context', {
+      const context: AnyResult = await call('synapse.context', {
         errorId: params.node_id,
       });
       const sections: string[] = [];
@@ -199,7 +219,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       to_id: z.number().describe('Target ID'),
     },
     async (params) => {
-      const path: AnyResult = await ipc.request('synapse.path', params);
+      const path: AnyResult = await call('synapse.path', params);
       if (!path) return textResult('No connection found between these nodes.');
       return textResult(path);
     },
@@ -215,7 +235,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
       priority: z.string().optional().describe('Minimum priority: low, medium, high, critical'),
     },
     async (params) => {
-      const insights: AnyResult = await ipc.request('research.insights', {
+      const insights: AnyResult = await call('research.insights', {
         type: params.type,
         activeOnly: true,
         limit: 20,
@@ -229,13 +249,31 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
   );
 
   server.tool(
+    'brain_rate_insight',
+    'Rate an insight as useful or not useful. Helps Brain learn what insights matter.',
+    {
+      insight_id: z.number().describe('The insight ID to rate'),
+      rating: z.number().describe('Rating: 1 (useful), 0 (neutral), -1 (not useful)'),
+      comment: z.string().optional().describe('Optional feedback comment'),
+    },
+    async (params) => {
+      const success: AnyResult = await call('insight.rate', {
+        id: params.insight_id,
+        rating: params.rating,
+        comment: params.comment,
+      });
+      return textResult(success ? `Insight #${params.insight_id} rated.` : `Insight #${params.insight_id} not found.`);
+    },
+  );
+
+  server.tool(
     'brain_suggest',
     'Ask Brain for suggestions: what to build next, what to improve, what patterns to extract.',
     {
       context: z.string().describe('Current context or question'),
     },
     async (params) => {
-      const suggestions: AnyResult = await ipc.request('research.suggest', {
+      const suggestions: AnyResult = await call('research.suggest', {
         context: params.context,
       });
       return textResult(suggestions);
@@ -249,8 +287,8 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
     'Get current Brain status: errors, solutions, code modules, synapse network, insights.',
     {},
     async () => {
-      const summary: AnyResult = await ipc.request('analytics.summary', {});
-      const network: AnyResult = await ipc.request('synapse.stats', {});
+      const summary: AnyResult = await call('analytics.summary', {});
+      const network: AnyResult = await call('synapse.stats', {});
       const lines = [
         `Errors: ${summary.errors?.total ?? 0} total, ${summary.errors?.unresolved ?? 0} unresolved`,
         `Solutions: ${summary.solutions?.total ?? 0}`,
@@ -268,7 +306,7 @@ export function registerTools(server: McpServer, ipc: IpcClient): void {
     'Get pending notifications (new solutions, recurring errors, research insights).',
     {},
     async () => {
-      const notifications: AnyResult = await ipc.request('notification.list', {});
+      const notifications: AnyResult = await call('notification.list', {});
       if (!notifications?.length) return textResult('No pending notifications.');
       const lines = notifications.map((n: AnyResult) =>
         `[${n.type}] ${n.title}: ${n.message?.slice(0, 120)}`

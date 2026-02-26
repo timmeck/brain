@@ -9,6 +9,8 @@ export function dashboardCommand(): Command {
     .description('Generate and open the Brain dashboard with live data')
     .option('-o, --output <path>', 'Output HTML file path')
     .option('--no-open', 'Generate without opening in browser')
+    .option('-l, --live', 'Start live dashboard server with SSE updates')
+    .option('-p, --port <number>', 'Port for live dashboard', '7420')
     .action(async (opts) => {
       await withIpc(async (client) => {
         console.log(`${icons.chart}  ${c.info('Fetching data from Brain...')}`);

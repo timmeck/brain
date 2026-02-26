@@ -65,6 +65,8 @@ async function main(): Promise<void> {
     const result: any = await client.request('error.report', {
       project: 'auto-detected',
       errorOutput: input.tool_output,
+      command: input.tool_input?.command,
+      workingDirectory: process.cwd(),
     });
 
     if (result.matches?.length > 0) {

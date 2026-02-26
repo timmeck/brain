@@ -10,6 +10,7 @@ export interface AnalysisResult {
   isPure: boolean;
   hasTypeAnnotations: boolean;
   linesOfCode: number;
+  complexity: number;
 }
 
 const SIDE_EFFECT_PATTERNS = [
@@ -37,6 +38,7 @@ export function analyzeCode(source: string, language: string): AnalysisResult {
   const isPure = checkPurity(source);
   const typed = parser.hasTypeAnnotations(source);
   const linesOfCode = source.split('\n').filter(l => l.trim().length > 0).length;
+  const complexity = computeCyclomaticComplexity(source, language);
 
   return {
     exports,
@@ -45,7 +47,45 @@ export function analyzeCode(source: string, language: string): AnalysisResult {
     isPure,
     hasTypeAnnotations: typed,
     linesOfCode,
+    complexity,
   };
+}
+
+/**
+ * Computes cyclomatic complexity: counts decision points in the code.
+ * CC = 1 + number of decision points (if, else if, for, while, case, catch, &&, ||, ?:)
+ */
+export function computeCyclomaticComplexity(source: string, language: string): number {
+  // Remove comments and strings to avoid false positives
+  const cleaned = source
+    .replace(/\/\/.*$/gm, '')           // single-line comments
+    .replace(/\/\*[\s\S]*?\*\//g, '')   // multi-line comments
+    .replace(/#.*$/gm, '')              // Python comments
+    .replace(/(["'`])(?:(?!\1|\\).|\\.)*\1/g, '""'); // strings
+
+  let complexity = 1; // Base complexity
+
+  // Language-agnostic decision point patterns
+  const patterns = [
+    /\bif\b/g,
+    /\belse\s+if\b/g,
+    /\belif\b/g,
+    /\bfor\b/g,
+    /\bwhile\b/g,
+    /\bcase\b/g,
+    /\bcatch\b/g,
+    /\bexcept\b/g,
+    /&&/g,
+    /\|\|/g,
+    /\?\s*[^:]/g, // ternary operator (not type annotations)
+  ];
+
+  for (const pattern of patterns) {
+    const matches = cleaned.match(pattern);
+    if (matches) complexity += matches.length;
+  }
+
+  return complexity;
 }
 
 export function checkPurity(source: string): boolean {
