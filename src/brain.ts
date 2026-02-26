@@ -120,8 +120,9 @@ export class BrainCore {
     if (config.embeddings.enabled) {
       this.embeddingEngine = new EmbeddingEngine(config.embeddings, this.db!);
       this.embeddingEngine.start();
-      // Wire embedding engine into error service for hybrid search
+      // Wire embedding engine into services for hybrid search
       services.error.setEmbeddingEngine(this.embeddingEngine);
+      services.code.setEmbeddingEngine(this.embeddingEngine);
       logger.info('Embedding engine started (model will load in background)');
     }
 

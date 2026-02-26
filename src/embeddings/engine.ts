@@ -186,11 +186,32 @@ export class EmbeddingEngine {
     return scores;
   }
 
-  /** Load vector scores for code module matching (sync) */
-  computeModuleVectorScores(query: string, language?: string): Map<number, number> {
+  /** Load vector scores for module-to-module matching (sync - reads pre-computed embeddings from DB) */
+  computeModuleVectorScores(moduleId: number, language?: string): Map<number, number> {
     const scores = new Map<number, number>();
-    // This needs async embedding — use cached if available
-    // For now, return empty (vector search for modules is done during sweep)
+
+    const moduleRow = this.db.prepare(
+      'SELECT embedding FROM code_modules WHERE id = ?'
+    ).get(moduleId) as { embedding: Buffer | null } | undefined;
+
+    if (!moduleRow?.embedding) return scores;
+
+    const incoming = EmbeddingEngine.deserialize(moduleRow.embedding);
+
+    let sql = 'SELECT id, embedding FROM code_modules WHERE id != ? AND embedding IS NOT NULL';
+    const params: unknown[] = [moduleId];
+    if (language) {
+      sql += ' AND language = ?';
+      params.push(language);
+    }
+
+    const candidates = this.db.prepare(sql).all(...params) as Array<{ id: number; embedding: Buffer }>;
+
+    for (const c of candidates) {
+      const candidate = EmbeddingEngine.deserialize(c.embedding);
+      scores.set(c.id, EmbeddingEngine.similarity(incoming, candidate));
+    }
+
     return scores;
   }
 

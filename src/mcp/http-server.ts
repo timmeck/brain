@@ -44,7 +44,7 @@ export class McpHttpServer {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           name: 'brain',
-          version: '1.7.0',
+          version: '1.8.0',
           protocol: 'MCP',
           transport: 'sse',
           endpoints: {
@@ -66,6 +66,9 @@ export class McpHttpServer {
   }
 
   stop(): void {
+    for (const transport of this.transports.values()) {
+      try { transport.close?.(); } catch { /* ignore */ }
+    }
     this.transports.clear();
     this.server?.close();
     this.server = null;
@@ -84,7 +87,7 @@ export class McpHttpServer {
 
       const server = new McpServer({
         name: 'brain',
-        version: '1.7.0',
+        version: '1.8.0',
       });
 
       registerToolsDirect(server, this.router);

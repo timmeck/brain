@@ -71,8 +71,43 @@ export function dashboardCommand(): Command {
           ? resolve(opts.output)
           : resolve(import.meta.dirname, '../../../dashboard.html');
 
-        writeFileSync(outPath, html, 'utf-8');
+        // Inject live SSE connection for --live mode
+        let finalHtml = html;
+        if (opts.live) {
+          const apiPort = opts.port || '7777';
+          const sseScript = `
+<script>
+(function(){
+  const evtSource = new EventSource('http://localhost:${apiPort}/api/v1/events');
+  evtSource.onmessage = function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'stats_update') {
+        document.querySelectorAll('.stat-card').forEach(card => {
+          const label = card.querySelector('.stat-label')?.textContent?.toLowerCase();
+          const num = card.querySelector('.stat-number');
+          if (label && num && data.stats[label] !== undefined) {
+            num.textContent = Number(data.stats[label]).toLocaleString();
+          }
+        });
+      }
+      if (data.type === 'event') {
+        const dot = document.querySelector('.activity-dot');
+        if (dot) { dot.style.background = '#ff5577'; setTimeout(() => dot.style.background = '', 500); }
+      }
+    } catch {}
+  };
+  evtSource.onerror = function() { setTimeout(() => location.reload(), 5000); };
+})();
+</script>`;
+          finalHtml = html.replace('</body>', sseScript + '</body>');
+        }
+
+        writeFileSync(outPath, finalHtml, 'utf-8');
         console.log(`${icons.ok}  ${c.success('Dashboard written to')} ${c.dim(outPath)}`);
+        if (opts.live) {
+          console.log(`  ${c.info('Live mode:')} Connected to Brain daemon SSE on port ${opts.port || 7777}`);
+        }
         console.log(`  ${c.label('Modules:')} ${c.value(data.stats.modules)}  ${c.label('Synapses:')} ${c.value(data.stats.synapses)}  ${c.label('Insights:')} ${c.value(data.stats.insights)}`);
 
         if (opts.open !== false) {

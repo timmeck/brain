@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { getLogger } from '../utils/logger.js';
+import { getEventBus } from '../utils/events.js';
 import type { IpcRouter } from '../ipc/router.js';
 
 export interface ApiServerOptions {
@@ -19,6 +20,8 @@ export class ApiServer {
   private server: http.Server | null = null;
   private logger = getLogger();
   private routes: RouteDefinition[];
+  private sseClients: Set<http.ServerResponse> = new Set();
+  private statsTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private options: ApiServerOptions) {
     this.routes = this.buildRoutes();
@@ -59,9 +62,19 @@ export class ApiServer {
     this.server.listen(port, () => {
       this.logger.info(`REST API server started on http://localhost:${port}`);
     });
+
+    this.setupSSE();
   }
 
   stop(): void {
+    if (this.statsTimer) {
+      clearInterval(this.statsTimer);
+      this.statsTimer = null;
+    }
+    for (const client of this.sseClients) {
+      try { client.end(); } catch { /* ignore */ }
+    }
+    this.sseClients.clear();
     this.server?.close();
     this.server = null;
     this.logger.info('REST API server stopped');
@@ -76,6 +89,19 @@ export class ApiServer {
     // Health check
     if (pathname === '/api/v1/health') {
       this.json(res, 200, { status: 'ok', timestamp: new Date().toISOString() });
+      return;
+    }
+
+    // SSE event stream (for live dashboard)
+    if (pathname === '/api/v1/events' && method === 'GET') {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+      res.write('data: {"type":"connected"}\n\n');
+      this.sseClients.add(res);
+      req.on('close', () => this.sseClients.delete(res));
       return;
     }
 
@@ -317,5 +343,53 @@ export class ApiServer {
       req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
       req.on('error', reject);
     });
+  }
+
+  private setupSSE(): void {
+    const bus = getEventBus();
+    const eventNames = [
+      'error:reported', 'error:resolved', 'solution:applied',
+      'solution:created', 'module:registered', 'module:updated',
+      'synapse:created', 'synapse:strengthened',
+      'insight:created', 'rule:learned',
+    ] as const;
+
+    for (const eventName of eventNames) {
+      bus.on(eventName, (data: unknown) => {
+        this.broadcastSSE({ type: 'event', event: eventName, data });
+      });
+    }
+
+    // Periodic stats broadcast every 30s
+    this.statsTimer = setInterval(() => {
+      if (this.sseClients.size > 0) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const summary = this.options.router.handle('analytics.summary', {}) as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const network = this.options.router.handle('synapse.stats', {}) as any;
+          const stats = {
+            modules: summary?.modules?.total ?? 0,
+            synapses: network?.totalSynapses ?? 0,
+            errors: summary?.errors?.total ?? 0,
+            solutions: summary?.solutions?.total ?? 0,
+            rules: summary?.rules?.active ?? 0,
+            insights: summary?.insights?.total ?? 0,
+          };
+          this.broadcastSSE({ type: 'stats_update', stats });
+        } catch { /* ignore stats errors */ }
+      }
+    }, 30_000);
+  }
+
+  private broadcastSSE(data: unknown): void {
+    const msg = `data: ${JSON.stringify(data)}\n\n`;
+    for (const client of this.sseClients) {
+      try {
+        client.write(msg);
+      } catch {
+        this.sseClients.delete(client);
+      }
+    }
   }
 }

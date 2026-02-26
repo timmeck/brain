@@ -10,6 +10,7 @@ import { findExactMatches, findSemanticMatches, findStructuralMatches } from '..
 import { sha256 } from '../utils/hash.js';
 import { getEventBus } from '../utils/events.js';
 import { getLogger } from '../utils/logger.js';
+import type { EmbeddingEngine } from '../embeddings/engine.js';
 
 export interface AnalyzeInput {
   project: string;
@@ -30,12 +31,17 @@ export interface FindReusableInput {
 export class CodeService {
   private logger = getLogger();
   private eventBus = getEventBus();
+  private embeddingEngine: EmbeddingEngine | null = null;
 
   constructor(
     private codeModuleRepo: CodeModuleRepository,
     private projectRepo: ProjectRepository,
     private synapseManager: SynapseManager,
   ) {}
+
+  setEmbeddingEngine(engine: EmbeddingEngine): void {
+    this.embeddingEngine = engine;
+  }
 
   analyzeAndRegister(input: AnalyzeInput): { moduleId: number; isNew: boolean; reusabilityScore: number } {
     // Ensure project exists
@@ -186,18 +192,45 @@ export class CodeService {
 
     const matches = findStructuralMatches(source, language, candidates, 0.3);
 
+    // Get vector similarity scores if embedding engine is ready
+    const vectorScores = this.embeddingEngine?.isReady()
+      ? this.embeddingEngine.computeModuleVectorScores(moduleId, language)
+      : undefined;
+
+    // Merge structural matches with vector boost
+    const scoreMap = new Map<number, number>();
     for (const match of matches) {
       if (match.score >= 0.3 && match.moduleId !== moduleId) {
-        this.codeModuleRepo.upsertSimilarity(moduleId, match.moduleId, match.score);
+        scoreMap.set(match.moduleId, match.score);
+      }
+    }
 
-        // High similarity → create synapse
-        if (match.score >= 0.7) {
-          this.synapseManager.strengthen(
-            { type: 'code_module', id: moduleId },
-            { type: 'code_module', id: match.moduleId },
-            'similar_to',
-          );
+    // Add vector-only matches that structural search missed
+    if (vectorScores) {
+      for (const [candId, vecScore] of vectorScores) {
+        if (vecScore >= 0.5 && candId !== moduleId) {
+          const existing = scoreMap.get(candId);
+          if (existing) {
+            // Boost structural score with vector similarity
+            scoreMap.set(candId, Math.min(1.0, existing + vecScore * 0.15));
+          } else {
+            // Vector-only match
+            scoreMap.set(candId, vecScore * 0.8);
+          }
         }
+      }
+    }
+
+    for (const [candId, score] of scoreMap) {
+      this.codeModuleRepo.upsertSimilarity(moduleId, candId, score);
+
+      // High similarity → create synapse
+      if (score >= 0.7) {
+        this.synapseManager.strengthen(
+          { type: 'code_module', id: moduleId },
+          { type: 'code_module', id: candId },
+          'similar_to',
+        );
       }
     }
   }
