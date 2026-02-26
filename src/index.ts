@@ -22,7 +22,7 @@ const program = new Command();
 program
   .name('brain')
   .description('Brain — Adaptive Error Memory & Code Intelligence System')
-  .version('1.8.0');
+  .version('1.8.1');
 
 program.addCommand(startCommand());
 program.addCommand(stopCommand());
