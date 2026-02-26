@@ -2,6 +2,8 @@
 
 **Adaptive Error Memory & Code Intelligence System for Claude Code**
 
+![Synapse Network](assets/synapse-network.png)
+
 Brain is an MCP server that gives Claude Code a persistent memory. It remembers every error you've encountered, every solution that worked (or didn't), and every code module across all your projects. Over time, it learns — strengthening connections between related concepts through a Hebbian synapse network, surfacing patterns, and proactively suggesting solutions before you even ask.
 
 ## Why Brain?
