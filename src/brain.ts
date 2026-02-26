@@ -60,8 +60,11 @@ export class BrainCore {
   private researchEngine: ResearchEngine | null = null;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private config: BrainConfig | null = null;
+  private configPath?: string;
+  private restarting = false;
 
   start(configPath?: string): void {
+    this.configPath = configPath;
     // 1. Config
     this.config = loadConfig(configPath);
     const config = this.config;
@@ -184,13 +187,29 @@ export class BrainCore {
     process.on('SIGINT', () => this.stop());
     process.on('SIGTERM', () => this.stop());
 
+    // 16. Crash recovery — auto-restart on uncaught errors
+    process.on('uncaughtException', (err) => {
+      logger.error('Uncaught exception — restarting', { error: err.message, stack: err.stack });
+      this.logCrash('uncaughtException', err);
+      this.restart();
+    });
+    process.on('unhandledRejection', (reason) => {
+      logger.error('Unhandled rejection — restarting', { reason: String(reason) });
+      this.logCrash('unhandledRejection', reason instanceof Error ? reason : new Error(String(reason)));
+      this.restart();
+    });
+
     logger.info(`Brain daemon started (PID: ${process.pid})`);
   }
 
-  stop(): void {
-    const logger = getLogger();
-    logger.info('Shutting down...');
+  private logCrash(type: string, err: Error): void {
+    if (!this.config) return;
+    const crashLog = path.join(path.dirname(this.config.dbPath), 'crashes.log');
+    const entry = `[${new Date().toISOString()}] ${type}: ${err.message}\n${err.stack ?? ''}\n\n`;
+    try { fs.appendFileSync(crashLog, entry); } catch { /* best effort */ }
+  }
 
+  private cleanup(): void {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
@@ -203,6 +222,34 @@ export class BrainCore {
     this.apiServer?.stop();
     this.ipcServer?.stop();
     this.db?.close();
+
+    this.db = null;
+    this.ipcServer = null;
+    this.apiServer = null;
+    this.mcpHttpServer = null;
+    this.embeddingEngine = null;
+    this.learningEngine = null;
+    this.researchEngine = null;
+  }
+
+  restart(): void {
+    if (this.restarting) return;
+    this.restarting = true;
+
+    const logger = getLogger();
+    logger.info('Restarting Brain daemon...');
+
+    try { this.cleanup(); } catch { /* best effort cleanup */ }
+
+    this.restarting = false;
+    this.start(this.configPath);
+  }
+
+  stop(): void {
+    const logger = getLogger();
+    logger.info('Shutting down...');
+
+    this.cleanup();
 
     // Remove PID file
     if (this.config) {
