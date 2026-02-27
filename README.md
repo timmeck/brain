@@ -371,6 +371,20 @@ This happens silently in the background — no manual intervention needed.
 - **Winston** — Structured logging
 - **Vitest** — Testing
 
+## Brain Ecosystem
+
+Brain is part of the **Brain Ecosystem** — a family of standalone MCP servers that give Claude Code persistent, self-learning memory.
+
+| Brain | Purpose | Ports |
+|-------|---------|-------|
+| **Brain** | Error memory & code intelligence | **7777** / 7778 |
+| [Trading Brain](https://github.com/timmeck/trading-brain) | Adaptive trading intelligence | 7779 / 7780 |
+| [Marketing Brain](https://github.com/timmeck/marketing-brain) | Content strategy & engagement | 7781 / 7782 |
+| [Brain Core](https://github.com/timmeck/brain-core) | Shared infrastructure (optional) | — |
+| [Brain Hub](https://timmeck.github.io/brain-hub/) | Ecosystem landing page | — |
+
+Each brain is **fully standalone** — [Brain Core](https://www.npmjs.com/package/@timmeck/brain-core) is an optional shared dependency that eliminates code duplication across brains.
+
 ## License
 
 [MIT](LICENSE)
