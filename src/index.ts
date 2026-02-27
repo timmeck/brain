@@ -18,13 +18,14 @@ import { doctorCommand } from './cli/commands/doctor.js';
 import { explainCommand } from './cli/commands/explain.js';
 import { peersCommand } from './cli/commands/peers.js';
 import { setupCommand } from './cli/commands/setup.js';
+import { getCurrentVersion } from './cli/update-check.js';
 
 const program = new Command();
 
 program
   .name('brain')
   .description('Brain — Adaptive Error Memory & Code Intelligence System')
-  .version('2.0.0');
+  .version(getCurrentVersion());
 
 program.addCommand(startCommand());
 program.addCommand(stopCommand());
