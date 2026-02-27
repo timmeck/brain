@@ -50,6 +50,9 @@ import { McpHttpServer } from './mcp/http-server.js';
 // Embeddings
 import { EmbeddingEngine } from './embeddings/engine.js';
 
+// Cross-Brain
+import { CrossBrainClient } from '@timmeck/brain-core';
+
 export class BrainCore {
   private db: Database.Database | null = null;
   private ipcServer: IpcServer | null = null;
@@ -58,6 +61,7 @@ export class BrainCore {
   private embeddingEngine: EmbeddingEngine | null = null;
   private learningEngine: LearningEngine | null = null;
   private researchEngine: ResearchEngine | null = null;
+  private crossBrain: CrossBrainClient | null = null;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private config: BrainConfig | null = null;
   private configPath?: string;
@@ -148,7 +152,10 @@ export class BrainCore {
     // Expose learning engine to IPC
     services.learning = this.learningEngine;
 
-    // 11. IPC Server
+    // 11. Cross-Brain Client
+    this.crossBrain = new CrossBrainClient('brain');
+
+    // 12. IPC Server
     const router = new IpcRouter(services);
     this.ipcServer = new IpcServer(router, config.ipc.pipeName);
     this.ipcServer.start();

@@ -128,6 +128,15 @@ export class IpcRouter {
         if (!s.learning) throw new Error('Learning engine not available');
         return s.learning.runCycle();
       }],
+
+      // Status (cross-brain)
+      ['status',                  () => ({
+        name: 'brain',
+        version: '2.0.0',
+        uptime: Math.floor(process.uptime()),
+        pid: process.pid,
+        methods: this.listMethods().length,
+      })],
     ]);
   }
 }

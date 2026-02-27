@@ -1,19 +1,11 @@
-import path from 'node:path';
-import os from 'node:os';
+import { normalizePath, getDataDir as coreGetDataDir, getPipeName as coreGetPipeName } from '@timmeck/brain-core';
 
-export function normalizePath(filePath: string): string {
-  return filePath.replace(/\\/g, '/');
-}
+export { normalizePath };
 
 export function getDataDir(): string {
-  const envDir = process.env['BRAIN_DATA_DIR'];
-  if (envDir) return path.resolve(envDir);
-  return path.join(os.homedir(), '.brain');
+  return coreGetDataDir('BRAIN_DATA_DIR', '.brain');
 }
 
 export function getPipeName(name: string = 'brain'): string {
-  if (process.platform === 'win32') {
-    return `\\\\.\\pipe\\${name}`;
-  }
-  return path.join(os.tmpdir(), `${name}.sock`);
+  return coreGetPipeName(name);
 }

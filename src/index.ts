@@ -16,13 +16,14 @@ import { configCommand } from './cli/commands/config.js';
 import { projectsCommand } from './cli/commands/projects.js';
 import { doctorCommand } from './cli/commands/doctor.js';
 import { explainCommand } from './cli/commands/explain.js';
+import { peersCommand } from './cli/commands/peers.js';
 
 const program = new Command();
 
 program
   .name('brain')
   .description('Brain — Adaptive Error Memory & Code Intelligence System')
-  .version('1.8.1');
+  .version('2.0.0');
 
 program.addCommand(startCommand());
 program.addCommand(stopCommand());
@@ -39,6 +40,7 @@ program.addCommand(configCommand());
 program.addCommand(projectsCommand());
 program.addCommand(doctorCommand());
 program.addCommand(explainCommand());
+program.addCommand(peersCommand());
 
 // Hidden command: run MCP server (called by Claude Code)
 program
