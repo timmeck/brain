@@ -17,6 +17,7 @@ import { projectsCommand } from './cli/commands/projects.js';
 import { doctorCommand } from './cli/commands/doctor.js';
 import { explainCommand } from './cli/commands/explain.js';
 import { peersCommand } from './cli/commands/peers.js';
+import { setupCommand } from './cli/commands/setup.js';
 
 const program = new Command();
 
@@ -41,6 +42,7 @@ program.addCommand(projectsCommand());
 program.addCommand(doctorCommand());
 program.addCommand(explainCommand());
 program.addCommand(peersCommand());
+program.addCommand(setupCommand());
 
 // Hidden command: run MCP server (called by Claude Code)
 program

@@ -16,17 +16,22 @@
     "test:coverage": "vitest --coverage"
   },
   "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "claude",
+    "claude-code",
+    "cursor",
+    "windsurf",
+    "cline",
+    "ai-tools",
     "error-memory",
     "code-intelligence",
-    "mcp",
-    "claude-code",
+    "developer-tools",
     "hebbian-learning",
     "synapse-network",
     "adaptive-learning",
-    "vector-search",
-    "embeddings",
-    "rest-api",
-    "developer-tools"
+    "vector-search"
   ],
   "author": "Tim Mecklenburg",
   "license": "MIT",

@@ -4,150 +4,90 @@
 [![npm downloads](https://img.shields.io/npm/dm/@timmeck/brain)](https://www.npmjs.com/package/@timmeck/brain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/timmeck/brain)](https://github.com/timmeck/brain)
+[![Smithery](https://smithery.ai/badge/@timmeck/brain)](https://smithery.ai/server/@timmeck/brain)
 
-**Adaptive Error Memory & Code Intelligence System for Claude Code**
+**Adaptive Error Memory & Code Intelligence MCP Server for Claude Code**
 
-![Synapse Network](assets/synapse-network.png)
-
-Brain is an MCP server that gives Claude Code a persistent memory. It remembers every error you've encountered, every solution that worked (or didn't), and every code module across all your projects. Over time, it learns — strengthening connections between related concepts through a Hebbian synapse network, surfacing patterns, and proactively suggesting solutions before you even ask.
-
-## Why Brain?
-
-Without Brain, Claude Code starts fresh every session. With Brain:
-
-- **Errors are solved faster** — Brain matches new errors against its database and suggests proven solutions with confidence scores
-- **Cross-project learning** — Brain remembers fixes from your other projects and suggests them automatically
-- **Code is never rewritten** — Before writing new code, Brain checks if similar modules already exist across your projects
-- **Patterns emerge automatically** — The research engine analyzes your codebase to find trends, gaps, and synergies
-- **Knowledge compounds** — Every fix, every module, every session makes Brain smarter
-- **Errors are caught automatically** — Hooks detect errors in real-time and report them to Brain without manual intervention
-- **Proactive prevention** — Brain warns you BEFORE an error occurs when it detects code matching known antipatterns
-- **Semantic search** — Local embeddings enable vector-based similarity search alongside TF-IDF matching
-- **Universal access** — REST API and MCP over HTTP make Brain available to any tool, IDE, or CI/CD pipeline
-
-## Features
-
-### Core Intelligence
-- **Error Memory** — Track errors, match against known solutions, learn from successes and failures
-- **Code Intelligence** — Register and discover reusable code modules across projects
-- **Hebbian Synapse Network** — Weighted graph connecting errors, solutions, code modules, and concepts. Connections strengthen with use (like biological synapses)
-- **Spreading Activation** — Explore related knowledge by activating nodes in the synapse network
-- **Research Engine** — Automated analysis producing actionable insights: trends, gaps, synergies, template candidates
-- **Learning Engine** — Pattern extraction, rule generation, confidence decay, antipattern detection with adaptive thresholds
-
-### Smart Matching (v1.3+)
-- **Context Enrichment** — Errors are enriched with task context, working directory, and command information
-- **Error Chain Tracking** — Detects when errors cascade from fix attempts ("this error arose while fixing error #12")
-- **Module Similarity** — Pairwise similarity detection finds duplicate code across projects
-- **Cyclomatic Complexity** — Complexity metrics flow into reusability scores
-- **Source Hash Detection** — Skips re-analysis for unchanged modules, triggers re-analysis on changes
-- **Dependency Synapses** — Internal imports create `depends_on` synapses, enriching the network
-
-### Advanced Intelligence (v1.4+)
-- **Cross-Project Transfer Learning** — Matches errors against resolved errors from ALL projects, not just the current one
-- **Proactive Prevention** — Post-write hook checks new code against known antipatterns before errors occur
-- **Adaptive Thresholds** — Learning thresholds auto-calibrate based on data volume (10 errors vs. 500 errors need different sensitivity)
-- **User Feedback Loop** — Rate insights and rules as useful/not useful to improve future analysis
-
-### Visualization (v1.5+)
-- **Live Dashboard** — SSE-powered real-time dashboard with streaming stats
-- **Health Score** — Single-number indicator of how well Brain is performing
-- **Error Timeline** — Daily error counts over time, per project
-- **Error Explain** — Full "medical record" of any error: solutions, chains, related errors, rules, insights
-
-### Git Integration (v1.6+)
-- **Commit Linking** — Link errors to git commits (introduced_by, fixed_by)
-- **Diff-Aware Context** — Captures current git diff and branch when errors occur
-- **Commit History** — Track which commits introduced errors and which fixed them
-
-### Universal Access (v1.7+)
-- **REST API** — Full HTTP API on port 7777 with RESTful routes + generic RPC endpoint
-- **MCP over HTTP/SSE** — Standard MCP protocol over HTTP for Cursor, Windsurf, Cline, Continue, and other tools
-- **Batch RPC** — Send multiple API calls in a single request
-- **API Key Auth** — Optional authentication via `X-API-Key` header
-
-### Semantic Search (v1.8+)
-- **Local Embeddings** — all-MiniLM-L6-v2 (23MB) runs locally via ONNX, no cloud required
-- **Hybrid Search** — Triple-signal matching: TF-IDF + Vector Similarity + Synapse Boost
-- **Background Sweep** — Embeddings are computed automatically for all entries
-- **Graceful Fallback** — Works without embeddings; vector search enhances but isn't required
+<!-- TODO: Replace with actual recording once setup wizard is recorded -->
+<!-- ![Demo](assets/demo.gif) -->
 
 ## Quick Start
 
-### Installation
-
 ```bash
 npm install -g @timmeck/brain
+brain setup
 ```
 
-Or from source:
+That's it. One command configures MCP, hooks, and starts the daemon. Brain is now learning from every error you encounter.
 
-```bash
-git clone https://github.com/timmeck/brain.git
-cd brain
-npm install
-npm run build
+## What Brain Does
+
+### Before Brain: Every session starts from zero
+
+```
+You: Fix this TypeError
+Claude: *investigates from scratch, tries 3 approaches, 15 minutes later finds the fix*
+
+Next day, same error in another project:
+Claude: *investigates from scratch again*
 ```
 
-### Setup with Claude Code
+### After Brain: Errors get solved faster every time
 
-Add Brain's MCP server and auto-detect hook to your Claude Code configuration (`~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "brain": {
-      "command": "brain",
-      "args": ["mcp-server"]
-    }
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": {
-          "tool_name": "Bash"
-        },
-        "command": "node C:\\Users\\<YOU>\\AppData\\Roaming\\npm\\node_modules\\@timmeck\\brain\\dist\\hooks\\post-tool-use.js"
-      }
-    ]
-  }
-}
+```
+You: Fix this TypeError
+Claude: *Brain found 3 similar errors. Solution with 94% confidence:
+         "Add null check before accessing .length — this pattern occurs
+          in array-processing modules across 4 of your projects."*
+Fixed in 30 seconds.
 ```
 
-> **Note:** Replace `<YOU>` with your Windows username. On macOS/Linux, the path is the global npm prefix (run `npm prefix -g` to find it).
+### Before Brain: Duplicate code everywhere
 
-### Setup with Cursor / Windsurf / Cline / Continue
+```
+You: Write a retry wrapper with exponential backoff
+Claude: *writes a new implementation*
 
-Brain v1.7+ supports MCP over HTTP with SSE transport. Add this to your tool's MCP config:
-
-```json
-{
-  "brain": {
-    "url": "http://localhost:7778/sse"
-  }
-}
+Meanwhile, you already have 3 retry wrappers across different projects.
 ```
 
-Make sure the Brain daemon is running (`brain start`).
+### After Brain: Code is never rewritten
 
-### Start the Daemon
-
-```bash
-brain start
-brain status
-brain doctor    # verify everything is configured correctly
+```
+You: Write a retry wrapper
+Claude: *Brain found a reusable module: src/utils/retry.ts (project: api-server)
+         Reusability score: 0.92, used in 4 projects, 12 imports*
 ```
 
-The daemon runs background tasks: learning cycles, research analysis, synapse maintenance, confidence decay, and embedding computation.
+### Before Brain: Errors keep recurring
 
-### Import Your Projects
-
-```bash
-brain import ./my-project
-brain projects              # see all imported projects
+```
+Week 1: ECONNRESET on API call → fix with retry
+Week 2: Same ECONNRESET → debug from scratch
+Week 3: Same pattern in different service → no idea it's related
 ```
 
-Brain scans for source files (TypeScript, JavaScript, Python, Rust, Go, Shell, HTML, CSS, JSON, YAML, TOML, Markdown, SQL, and more) and registers code modules with reusability scores.
+### After Brain: Patterns emerge, prevention kicks in
+
+```
+Brain: "⚠ Warning: This code matches antipattern #7 — missing connection
+        timeout on HTTP client. This has caused ECONNRESET in 3 projects.
+        Suggested fix: add timeout: 5000 to request config."
+```
+
+## Features
+
+- **Error Memory** — Track errors, match against known solutions with hybrid search (TF-IDF + vector + synapse boost)
+- **Code Intelligence** — Register and discover reusable code modules across all projects
+- **Hebbian Synapse Network** — Weighted graph where connections strengthen with use ("neurons that fire together wire together")
+- **Auto Error Detection** — PostToolUse hook catches errors in real-time, no manual reporting needed
+- **Cross-Project Learning** — Solutions from project A help solve errors in project B
+- **Proactive Prevention** — Warns before errors occur when code matches known antipatterns
+- **Semantic Search** — Local all-MiniLM-L6-v2 embeddings (23MB, no cloud required) for vector similarity
+- **Learning Engine** — Extracts patterns, generates rules, detects antipatterns with adaptive thresholds
+- **Research Engine** — Automated trend analysis, gap detection, cross-project synergy mapping
+- **Git Integration** — Links errors to commits, tracks which changes introduced or fixed bugs
+- **Universal Access** — MCP (stdio + HTTP/SSE), REST API, works with Claude Code, Cursor, Windsurf, Cline
 
 ## Architecture
 
@@ -209,27 +149,6 @@ Cross-brain peering via IPC named pipes (\\.\pipe\brain-*, /tmp/brain-*)
 | **REST API** | HTTP API exposing all 40+ Brain methods as RESTful endpoints |
 | **MCP HTTP Server** | SSE transport enabling non-Claude MCP clients (Cursor, Windsurf, etc.) |
 
-## CLI Commands
-
-```
-brain start              Start the Brain daemon
-brain stop               Stop the daemon
-brain status             Show stats (errors, solutions, modules, synapses, insights)
-brain doctor             Health check: daemon, DB, MCP, hooks
-brain projects           List all imported projects with module counts
-brain query <text>       Search for errors and solutions
-brain modules            List registered code modules
-brain insights           Show research insights
-brain network            Explore the synapse network
-brain learn              Trigger a learning cycle manually
-brain explain <id>       Full error report: solutions, chains, rules, insights
-brain config             View and manage Brain configuration
-brain export             Export Brain data as JSON
-brain import <dir>       Import a project directory into Brain
-brain dashboard          Generate interactive HTML dashboard (--live for SSE)
-brain peers              Show status of peer brains in the ecosystem
-```
-
 ## MCP Tools
 
 These tools are available to Claude Code (and other MCP clients) when Brain is configured:
@@ -254,9 +173,31 @@ These tools are available to Claude Code (and other MCP clients) when Brain is c
 | `brain_query_peer` | Query another brain in the ecosystem (method + params) |
 | `brain_error_trading_context` | Correlate an error with trading outcomes from Trading Brain |
 
+## CLI Commands
+
+```
+brain setup              One-command setup: MCP + hooks + daemon
+brain start              Start the Brain daemon
+brain stop               Stop the daemon
+brain status             Show stats (errors, solutions, modules, synapses, insights)
+brain doctor             Health check: daemon, DB, MCP, hooks
+brain projects           List all imported projects with module counts
+brain query <text>       Search for errors and solutions
+brain modules            List registered code modules
+brain insights           Show research insights
+brain network            Explore the synapse network
+brain learn              Trigger a learning cycle manually
+brain explain <id>       Full error report: solutions, chains, rules, insights
+brain config             View and manage Brain configuration
+brain export             Export Brain data as JSON
+brain import <dir>       Import a project directory into Brain
+brain dashboard          Generate interactive HTML dashboard (--live for SSE)
+brain peers              Show status of peer brains in the ecosystem
+```
+
 ## REST API
 
-Brain v1.7+ includes a full REST API on port 7777 (default).
+Brain includes a full REST API on port 7777 (default).
 
 ### Generic RPC Endpoint
 
@@ -313,21 +254,26 @@ GET    /api/v1/methods                   # List all 40+ available methods
 
 ### Authentication
 
-Set an API key via environment variable:
-
 ```bash
 BRAIN_API_KEY=your-secret-key brain start
-```
-
-Then include it in requests:
-
-```bash
 curl -H "X-API-Key: your-secret-key" http://localhost:7777/api/v1/analytics/summary
 ```
 
-## Configuration
+## Setup with Cursor / Windsurf / Cline / Continue
 
-Brain is configured via `config.json` in the data directory or environment variables:
+Brain supports MCP over HTTP with SSE transport:
+
+```json
+{
+  "brain": {
+    "url": "http://localhost:7778/sse"
+  }
+}
+```
+
+Make sure the Brain daemon is running (`brain start`).
+
+## Configuration
 
 | Env Variable | Default | Description |
 |---|---|---|
@@ -341,21 +287,9 @@ Brain is configured via `config.json` in the data directory or environment varia
 | `BRAIN_EMBEDDINGS_ENABLED` | `true` | Enable local embeddings |
 | `BRAIN_EMBEDDINGS_MODEL` | `Xenova/all-MiniLM-L6-v2` | Embedding model |
 
-## Auto Error Detection
-
-When the PostToolUse hook is configured, Brain automatically:
-
-1. **Captures errors** — Detects errors from Bash command output (exit codes, error patterns like `TypeError`, `ENOENT`, `npm ERR!`, `BUILD FAILED`, etc.)
-2. **Reports to Brain** — Sends the error to the daemon for storage and matching
-3. **Suggests solutions** — If Brain has seen a similar error before, it outputs a hint via stderr
-4. **Checks antipatterns** — Warns if the error matches a known antipattern
-5. **Checks code** — PostWrite hook proactively checks new code against known error patterns
-
-This happens silently in the background — no manual intervention needed.
-
 ## How It Learns
 
-1. **Error Reported** — Claude encounters an error and reports it via `brain_report_error` (or the hook catches it automatically)
+1. **Error Reported** — Claude encounters an error (hook catches it automatically or via `brain_report_error`)
 2. **Context Enriched** — Brain captures task context, working directory, command, git branch, and diff
 3. **Hybrid Matched** — Error is compared against known errors using TF-IDF signals, vector embeddings, and synapse proximity
 4. **Solution Found** — When the error is fixed, `brain_report_solution` records the fix
@@ -365,17 +299,6 @@ This happens silently in the background — no manual intervention needed.
 8. **Research Runs** — Background analysis finds trends, gaps, and cross-project synergies
 9. **Embeddings Computed** — Background sweep generates vector embeddings for semantic search
 10. **Next Time** — When a similar error appears, Brain instantly suggests the proven solution — even from other projects
-
-## Tech Stack
-
-- **TypeScript** — Full type safety, ES2022 target, ESM modules
-- **better-sqlite3** — Fast, embedded, synchronous database
-- **MCP SDK** — Model Context Protocol integration (stdio + HTTP/SSE transports)
-- **@huggingface/transformers** — Local ONNX-based sentence embeddings (all-MiniLM-L6-v2)
-- **Commander** — CLI framework
-- **Chalk** — Colored terminal output
-- **Winston** — Structured logging
-- **Vitest** — Testing
 
 ## Brain Ecosystem
 
@@ -395,9 +318,16 @@ Each brain is **fully standalone** — [Brain Core](https://www.npmjs.com/packag
 
 Brains discover and query each other at runtime via IPC named pipes. Use `brain peers` to see online peers, or the `brain_query_peer` / `brain_ecosystem_status` MCP tools to access peer data from Claude Code. Brains also push event notifications to each other — when Brain reports an error, Trading Brain and Marketing Brain are notified automatically.
 
-### Ecosystem Dashboard
+## Tech Stack
 
-The interactive HTML dashboard (`brain dashboard`) includes an Ecosystem Peers section showing the live status of all connected brains.
+- **TypeScript** — Full type safety, ES2022 target, ESM modules
+- **better-sqlite3** — Fast, embedded, synchronous database
+- **MCP SDK** — Model Context Protocol integration (stdio + HTTP/SSE transports)
+- **@huggingface/transformers** — Local ONNX-based sentence embeddings (all-MiniLM-L6-v2)
+- **Commander** — CLI framework
+- **Chalk** — Colored terminal output
+- **Winston** — Structured logging
+- **Vitest** — Testing (189 tests)
 
 ## License
 
