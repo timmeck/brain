@@ -190,6 +190,8 @@ Brain scans for source files (TypeScript, JavaScript, Python, Rust, Go, Shell, H
          |     SQLite (DB)      |
          |  better-sqlite3      |
          +----------------------+
+
+Cross-brain peering via IPC named pipes (\\.\pipe\brain-*, /tmp/brain-*)
 ```
 
 ### Core Components
@@ -225,6 +227,7 @@ brain config             View and manage Brain configuration
 brain export             Export Brain data as JSON
 brain import <dir>       Import a project directory into Brain
 brain dashboard          Generate interactive HTML dashboard (--live for SSE)
+brain peers              Show status of peer brains in the ecosystem
 ```
 
 ## MCP Tools
@@ -380,10 +383,14 @@ Brain is part of the **Brain Ecosystem** — a family of standalone MCP servers 
 | **Brain** | Error memory & code intelligence | **7777** / 7778 |
 | [Trading Brain](https://github.com/timmeck/trading-brain) | Adaptive trading intelligence | 7779 / 7780 |
 | [Marketing Brain](https://github.com/timmeck/marketing-brain) | Content strategy & engagement | 7781 / 7782 |
-| [Brain Core](https://github.com/timmeck/brain-core) | Shared infrastructure (optional) | — |
+| [Brain Core](https://github.com/timmeck/brain-core) v1.2.0 | Shared infrastructure (IPC, MCP, REST, CLI) | — |
 | [Brain Hub](https://timmeck.github.io/brain-hub/) | Ecosystem landing page | — |
 
-Each brain is **fully standalone** — [Brain Core](https://www.npmjs.com/package/@timmeck/brain-core) is an optional shared dependency that eliminates code duplication across brains.
+Each brain is **fully standalone** — [Brain Core](https://www.npmjs.com/package/@timmeck/brain-core) provides shared infrastructure (IPC, MCP, REST API, CLI) used by all brains, eliminating ~2,200 lines of duplicated code.
+
+### Cross-Brain Communication
+
+Brains can discover and query each other at runtime using the `brain peers` CLI command and the CrossBrainClient IPC protocol. Each brain registers a named pipe on startup; peers are auto-discovered and health-checked so any brain can request data from its siblings without manual configuration.
 
 ## License
 
