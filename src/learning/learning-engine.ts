@@ -8,7 +8,7 @@ import { extractPatterns } from './pattern-extractor.js';
 import { generateRules, persistRules } from './rule-generator.js';
 import { shouldPruneRule } from './decay.js';
 import { computeAdaptiveThresholds, type AdaptiveThresholds } from './confidence-scorer.js';
-import { getLogger } from '../utils/logger.js';
+import { BaseLearningEngine } from '@timmeck/brain-core';
 
 export interface LearningCycleResult {
   newPatterns: number;
@@ -18,9 +18,7 @@ export interface LearningCycleResult {
   duration: number;
 }
 
-export class LearningEngine {
-  private timer: ReturnType<typeof setInterval> | null = null;
-  private logger = getLogger();
+export class LearningEngine extends BaseLearningEngine {
   private lastCycleAt: string | null = null;
 
   constructor(
@@ -30,19 +28,8 @@ export class LearningEngine {
     private ruleRepo: RuleRepository,
     private antipatternRepo: AntipatternRepository,
     private synapseManager: SynapseManager,
-  ) {}
-
-  start(): void {
-    this.logger.info(`Learning engine starting (interval: ${this.config.intervalMs}ms)`);
-    this.timer = setInterval(() => this.runCycle(), this.config.intervalMs);
-  }
-
-  stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    this.logger.info('Learning engine stopped');
+  ) {
+    super(config);
   }
 
   runCycle(): LearningCycleResult {

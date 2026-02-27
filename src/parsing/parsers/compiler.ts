@@ -18,7 +18,7 @@ export const compilerParser: ErrorParser = {
   },
 
   parse(input: string): ParsedError | null {
-    let gccMatch = GCC_RE.exec(input);
+    const gccMatch = GCC_RE.exec(input);
     if (gccMatch) {
       const filePath = gccMatch[1]!;
       const frame: StackFrame = {

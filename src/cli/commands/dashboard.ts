@@ -40,7 +40,7 @@ export function dashboardCommand(): Command {
         }
 
         // Categorize insights
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const insightList = Array.isArray(insights) ? insights : [];
         const templates = insightList.filter((i: InsightItem) => i.type === 'template_candidate' || i.title?.includes('Template'));
         const suggestions = insightList.filter((i: InsightItem) => i.type === 'suggestion' || i.type === 'project_suggestion');
@@ -66,7 +66,22 @@ export function dashboardCommand(): Command {
           synapseEdges,
         };
 
-        const html = generateHtml(data);
+        let html = generateHtml(data);
+
+        // Ecosystem peers
+        let peersHtml = '';
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const eco: any = await client.request('ecosystem.status', {});
+          const peers = Array.isArray(eco?.peers) ? eco.peers : [];
+          for (const peer of peers) {
+            const r = peer.result ?? {};
+            peersHtml += `<div class="stat-card green"><div class="stat-number">${r.version ?? '?'}</div><div class="stat-label">${peer.name ?? '?'} (${r.methods ?? '?'} methods)</div></div>\n`;
+          }
+        } catch { /* peers not available */ }
+        if (!peersHtml) peersHtml = '<div class="stat-card"><div class="stat-number">0</div><div class="stat-label">No peers online</div></div>';
+        html = html.replace('{{ECOSYSTEM_PEERS}}', peersHtml);
+
         const outPath = opts.output
           ? resolve(opts.output)
           : resolve(import.meta.dirname, '../../../dashboard.html');
@@ -382,6 +397,11 @@ function generateHtml(data: DashboardData): string {
       <div class="stat-card green"><div class="stat-number">${stats.solutions}</div><div class="stat-label">Solutions</div></div>
       <div class="stat-card orange"><div class="stat-number">${stats.rules}</div><div class="stat-label">Rules</div></div>
     </div>
+  </section>
+
+  <section id="ecosystem" class="reveal reveal-delay-3">
+    <div class="section-title"><div class="icon" style="background:rgba(61,255,160,.1)">&#127760;</div> Ecosystem Peers</div>
+    <div class="stats-grid">{{ECOSYSTEM_PEERS}}</div>
   </section>
 
   <section id="languages" class="reveal reveal-delay-3">

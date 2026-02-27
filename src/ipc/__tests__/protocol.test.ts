@@ -93,7 +93,7 @@ describe('MessageDecoder', () => {
     const msg = makeMessage({ id: 'byte' });
     const encoded = encodeMessage(msg);
 
-    let messages: IpcMessage[] = [];
+    const messages: IpcMessage[] = [];
     for (let i = 0; i < encoded.length; i++) {
       const result = decoder.feed(encoded.subarray(i, i + 1));
       messages.push(...result);

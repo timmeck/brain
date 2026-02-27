@@ -12,13 +12,9 @@ import { GapAnalyzer } from './gap-analyzer.js';
 import { SynergyDetector } from './synergy-detector.js';
 import { TemplateExtractor } from './template-extractor.js';
 import { InsightGenerator } from './insight-generator.js';
-import { getLogger } from '../utils/logger.js';
+import { BaseResearchEngine } from '@timmeck/brain-core';
 
-export class ResearchEngine {
-  private timer: ReturnType<typeof setInterval> | null = null;
-  private delayTimer: ReturnType<typeof setTimeout> | null = null;
-  private logger = getLogger();
-
+export class ResearchEngine extends BaseResearchEngine {
   private trendAnalyzer: TrendAnalyzer;
   private gapAnalyzer: GapAnalyzer;
   private synergyDetector: SynergyDetector;
@@ -35,31 +31,12 @@ export class ResearchEngine {
     private insightRepo: InsightRepository,
     private synapseManager: SynapseManager,
   ) {
+    super(config);
     this.trendAnalyzer = new TrendAnalyzer(errorRepo, solutionRepo, projectRepo, insightRepo, config);
     this.gapAnalyzer = new GapAnalyzer(errorRepo, solutionRepo, synapseRepo, projectRepo, insightRepo, config);
     this.synergyDetector = new SynergyDetector(synapseRepo, codeModuleRepo, solutionRepo, errorRepo, projectRepo, insightRepo, config);
     this.templateExtractor = new TemplateExtractor(codeModuleRepo, projectRepo, insightRepo, config);
     this.insightGenerator = new InsightGenerator(projectRepo, errorRepo, solutionRepo, codeModuleRepo, insightRepo, config);
-  }
-
-  start(): void {
-    this.logger.info(`Research engine starting (interval: ${this.config.intervalMs}ms, initial delay: ${this.config.initialDelayMs}ms)`);
-    this.delayTimer = setTimeout(() => {
-      this.runCycle();
-      this.timer = setInterval(() => this.runCycle(), this.config.intervalMs);
-    }, this.config.initialDelayMs);
-  }
-
-  stop(): void {
-    if (this.delayTimer) {
-      clearTimeout(this.delayTimer);
-      this.delayTimer = null;
-    }
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    this.logger.info('Research engine stopped');
   }
 
   runCycle(): ResearchCycleResult {

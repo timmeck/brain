@@ -314,6 +314,60 @@ function registerToolsWithCaller(server: McpServer, call: BrainCall): void {
       return textResult(`${notifications.length} notifications:\n${lines.join('\n')}`);
     },
   );
+
+  // === Cross-Brain Ecosystem Tools ===
+
+  server.tool(
+    'brain_ecosystem_status',
+    'Get status of all brains in the ecosystem (brain, trading-brain, marketing-brain).',
+    {},
+    async () => {
+      const result: AnyResult = await call('ecosystem.status', {});
+      if (!result?.peers?.length) return textResult('No peer brains are currently running.');
+      const lines = result.peers.map((p: AnyResult) =>
+        `${p.name}: v${p.result?.version ?? '?'} (PID ${p.result?.pid ?? '?'}, uptime ${p.result?.uptime ?? '?'}s, ${p.result?.methods ?? '?'} methods)`
+      );
+      return textResult(`Ecosystem status:\n- brain (self): running\n${lines.map((l: string) => `- ${l}`).join('\n')}`);
+    },
+  );
+
+  server.tool(
+    'brain_query_peer',
+    'Query another brain in the ecosystem. Call any method on trading-brain or marketing-brain.',
+    {
+      peer: z.string().describe('Peer brain name: trading-brain or marketing-brain'),
+      method: z.string().describe('IPC method to call (e.g. analytics.summary, trade.recent)'),
+      args: z.record(z.string(), z.unknown()).optional().describe('Method arguments as key-value pairs'),
+    },
+    async (params) => {
+      const result = await call('ecosystem.queryPeer', {
+        peer: params.peer,
+        method: params.method,
+        args: params.args ?? {},
+      });
+      return textResult(result);
+    },
+  );
+
+  server.tool(
+    'brain_error_trading_context',
+    'Correlate an error with trading outcomes. Asks trading-brain for recent trades around the time of an error.',
+    {
+      error_id: z.number().describe('The error ID to correlate'),
+      pair: z.string().optional().describe('Trading pair to filter (e.g. BTC/USDT)'),
+    },
+    async (params) => {
+      const error: AnyResult = await call('error.get', { id: params.error_id });
+      if (!error) return textResult(`Error #${params.error_id} not found.`);
+      const trades: AnyResult = await call('ecosystem.queryPeer', {
+        peer: 'trading-brain',
+        method: params.pair ? 'trade.byPair' : 'trade.recent',
+        args: params.pair ? { pair: params.pair } : { limit: 10 },
+      });
+      if (!trades) return textResult('Trading brain not available.');
+      return textResult({ error: { id: error.id, type: error.errorType, message: error.message }, recentTrades: trades });
+    },
+  );
 }
 
 function detectLanguage(filePath: string): string {

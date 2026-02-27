@@ -51,7 +51,7 @@ import { McpHttpServer } from './mcp/http-server.js';
 import { EmbeddingEngine } from './embeddings/engine.js';
 
 // Cross-Brain
-import { CrossBrainClient } from '@timmeck/brain-core';
+import { CrossBrainClient, CrossBrainNotifier } from '@timmeck/brain-core';
 
 export class BrainCore {
   private db: Database.Database | null = null;
@@ -62,6 +62,7 @@ export class BrainCore {
   private learningEngine: LearningEngine | null = null;
   private researchEngine: ResearchEngine | null = null;
   private crossBrain: CrossBrainClient | null = null;
+  private notifier: CrossBrainNotifier | null = null;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private config: BrainConfig | null = null;
   private configPath?: string;
@@ -149,11 +150,13 @@ export class BrainCore {
     this.researchEngine.start();
     logger.info(`Research engine started (interval: ${config.research.intervalMs}ms)`);
 
-    // Expose learning engine to IPC
+    // Expose learning engine + cross-brain to IPC
     services.learning = this.learningEngine;
+    services.crossBrain = this.crossBrain ?? undefined;
 
-    // 11. Cross-Brain Client
+    // 11. Cross-Brain Client + Notifier
     this.crossBrain = new CrossBrainClient('brain');
+    this.notifier = new CrossBrainNotifier(this.crossBrain, 'brain');
 
     // 12. IPC Server
     const router = new IpcRouter(services);
@@ -270,14 +273,16 @@ export class BrainCore {
 
   private setupEventListeners(services: Services, synapseManager: SynapseManager): void {
     const bus = getEventBus();
+    const notifier = this.notifier;
 
-    // Error → Project synapse
+    // Error → Project synapse + notify peers
     bus.on('error:reported', ({ errorId, projectId }) => {
       synapseManager.strengthen(
         { type: 'error', id: errorId },
         { type: 'project', id: projectId },
         'co_occurs',
       );
+      notifier?.notify('error:reported', { errorId, projectId });
     });
 
     // Solution applied → strengthen or weaken
@@ -312,9 +317,10 @@ export class BrainCore {
       getLogger().info(`New rule #${ruleId} learned: ${pattern}`);
     });
 
-    // Insight created → log
+    // Insight created → log + notify marketing (content opportunity)
     bus.on('insight:created', ({ insightId, type }) => {
       getLogger().info(`New insight #${insightId} (${type})`);
+      notifier?.notifyPeer('marketing-brain', 'insight:created', { insightId, type });
     });
   }
 }

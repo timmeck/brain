@@ -1,5 +1,5 @@
 import type { SolutionRepository } from '../db/repositories/solution.repository.js';
-import { wilsonScore } from './confidence-scorer.js';
+import { wilsonScore, timeDecayFactor } from '@timmeck/brain-core';
 
 /**
  * Update confidence scores for all solutions based on their attempt history.
@@ -26,8 +26,7 @@ export function updateSolutionConfidences(solutionRepo: SolutionRepository): num
  * Compute relevance decay factor for a timestamp.
  */
 export function relevanceDecay(timestamp: string, halfLifeDays: number): number {
-  const ageDays = (Date.now() - new Date(timestamp).getTime()) / (1000 * 60 * 60 * 24);
-  return Math.pow(0.5, ageDays / halfLifeDays);
+  return timeDecayFactor(timestamp, halfLifeDays);
 }
 
 /**

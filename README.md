@@ -250,6 +250,9 @@ These tools are available to Claude Code (and other MCP clients) when Brain is c
 | `brain_suggest` | Get suggestions on what to build or improve |
 | `brain_status` | Current Brain stats |
 | `brain_notifications` | Get pending notifications |
+| `brain_ecosystem_status` | Get status of all brains in the ecosystem |
+| `brain_query_peer` | Query another brain in the ecosystem (method + params) |
+| `brain_error_trading_context` | Correlate an error with trading outcomes from Trading Brain |
 
 ## REST API
 
@@ -383,14 +386,18 @@ Brain is part of the **Brain Ecosystem** — a family of standalone MCP servers 
 | **Brain** | Error memory & code intelligence | **7777** / 7778 |
 | [Trading Brain](https://github.com/timmeck/trading-brain) | Adaptive trading intelligence | 7779 / 7780 |
 | [Marketing Brain](https://github.com/timmeck/marketing-brain) | Content strategy & engagement | 7781 / 7782 |
-| [Brain Core](https://github.com/timmeck/brain-core) v1.2.0 | Shared infrastructure (IPC, MCP, REST, CLI) | — |
+| [Brain Core](https://github.com/timmeck/brain-core) v1.6.0 | Shared infrastructure (IPC, MCP, REST, CLI, math, synapses) | — |
 | [Brain Hub](https://timmeck.github.io/brain-hub/) | Ecosystem landing page | — |
 
-Each brain is **fully standalone** — [Brain Core](https://www.npmjs.com/package/@timmeck/brain-core) provides shared infrastructure (IPC, MCP, REST API, CLI) used by all brains, eliminating ~2,200 lines of duplicated code.
+Each brain is **fully standalone** — [Brain Core](https://www.npmjs.com/package/@timmeck/brain-core) provides shared infrastructure (IPC, MCP, REST API, CLI, math, synapse algorithms) used by all brains, eliminating ~2,800 lines of duplicated code.
 
 ### Cross-Brain Communication
 
-Brains can discover and query each other at runtime using the `brain peers` CLI command and the CrossBrainClient IPC protocol. Each brain registers a named pipe on startup; peers are auto-discovered and health-checked so any brain can request data from its siblings without manual configuration.
+Brains discover and query each other at runtime via IPC named pipes. Use `brain peers` to see online peers, or the `brain_query_peer` / `brain_ecosystem_status` MCP tools to access peer data from Claude Code. Brains also push event notifications to each other — when Brain reports an error, Trading Brain and Marketing Brain are notified automatically.
+
+### Ecosystem Dashboard
+
+The interactive HTML dashboard (`brain dashboard`) includes an Ecosystem Peers section showing the live status of all connected brains.
 
 ## License
 

@@ -1,7 +1,7 @@
-import type { NodeType, SynapseRecord, NetworkStats } from '../types/synapse.types.js';
+import type { NodeType } from '../types/synapse.types.js';
+import type { NetworkStats } from '../types/synapse.types.js';
 import type { SynapseManager } from '../synapses/synapse-manager.js';
-import type { ActivationResult } from '../synapses/activation.js';
-import type { SynapsePath } from '../synapses/pathfinder.js';
+import type { ActivationResult, SynapsePath, SynapseRecord } from '@timmeck/brain-core';
 
 export interface ErrorContext {
   solutions: ActivationResult[];
