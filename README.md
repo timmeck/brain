@@ -357,8 +357,8 @@ Brain is part of the **Brain Ecosystem** — a family of standalone MCP servers 
 | Brain | Purpose | Ports |
 |-------|---------|-------|
 | **Brain** | Error memory, code intelligence & persistent context | **7777** / 7778 |
-| [Trading Brain](https://github.com/timmeck/trading-brain) | Adaptive trading intelligence | 7779 / 7780 |
-| [Marketing Brain](https://github.com/timmeck/marketing-brain) | Content strategy & engagement | 7781 / 7782 |
+| [Trading Brain](https://github.com/timmeck/trading-brain) v1.3.0 | Adaptive trading intelligence with memory & sessions | 7779 / 7780 |
+| [Marketing Brain](https://github.com/timmeck/marketing-brain) v0.5.0 | Content strategy & engagement with memory & sessions | 7781 / 7782 |
 | [Brain Core](https://github.com/timmeck/brain-core) v1.6.0 | Shared infrastructure (IPC, MCP, REST, CLI, math, synapses, memory) | — |
 | [Brain Hub](https://timmeck.github.io/brain-hub/) | Ecosystem landing page | — |
 
