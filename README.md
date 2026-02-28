@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@timmeck/brain)](https://www.npmjs.com/package/@timmeck/brain)
 [![npm downloads](https://img.shields.io/npm/dm/@timmeck/brain)](https://www.npmjs.com/package/@timmeck/brain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/timmeck/brain)](https://github.com/timmeck/brain)
+[![GitHub stars](https://img.shields.io/github/stars/timmeck/brain?style=social)](https://github.com/timmeck/brain)
 
 **Adaptive Error Memory, Code Intelligence & Persistent Context MCP Server for Claude Code**
 
@@ -377,6 +377,13 @@ Brains discover and query each other at runtime via IPC named pipes. Use `brain 
 - **Chalk** — Colored terminal output
 - **Winston** — Structured logging
 - **Vitest** — Testing
+
+## Support
+
+If Brain helps you, consider giving it a star — it helps others discover the project and keeps development going.
+
+[![Star this repo](https://img.shields.io/github/stars/timmeck/brain?style=social)](https://github.com/timmeck/brain)
+[![Sponsor](https://img.shields.io/badge/Sponsor-Support%20Development-ea4aaa)](https://github.com/sponsors/timmeck)
 
 ## License
 
