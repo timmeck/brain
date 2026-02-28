@@ -1,5 +1,7 @@
 # Brain
 
+> **This repo has moved to [brain-ecosystem](https://github.com/timmeck/brain-ecosystem/tree/main/packages/brain).** This repository is archived — all development continues in the monorepo. Install via `npm install -g @timmeck/brain` (unchanged).
+
 [![npm version](https://img.shields.io/npm/v/@timmeck/brain)](https://www.npmjs.com/package/@timmeck/brain)
 [![npm downloads](https://img.shields.io/npm/dm/@timmeck/brain)](https://www.npmjs.com/package/@timmeck/brain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
