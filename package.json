@@ -1,6 +1,6 @@
 {
   "name": "@timmeck/brain",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Adaptive error memory and code intelligence system with Hebbian synapse network, hybrid search, and REST API",
   "type": "module",
   "main": "dist/index.js",
@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
-    "test": "vitest",
+    "test": "vitest run",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test:coverage": "vitest --coverage"
@@ -37,12 +37,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/timmeck/brain"
+    "url": "https://github.com/timmeck/brain-ecosystem",
+    "directory": "packages/brain"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@timmeck/brain-core": "^1.6.0",
+    "@timmeck/brain-core": "*",
     "better-sqlite3": "^11.7.0",
     "chalk": "^5.6.2",
     "commander": "^13.0.0",
