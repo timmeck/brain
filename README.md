@@ -4,7 +4,6 @@
 [![npm downloads](https://img.shields.io/npm/dm/@timmeck/brain)](https://www.npmjs.com/package/@timmeck/brain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/timmeck/brain)](https://github.com/timmeck/brain)
-[![Smithery](https://smithery.ai/badge/@timmeck/brain)](https://smithery.ai/server/@timmeck/brain)
 
 **Adaptive Error Memory, Code Intelligence & Persistent Context MCP Server for Claude Code**
 
