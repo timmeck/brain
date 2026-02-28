@@ -67,6 +67,16 @@ export function statusCommand(): Command {
 
         console.log(`  ${icons.insight}  ${c.orange.bold('Research Brain')}`);
         console.log(`     ${c.label('Insights:')}   ${c.value(summary.insights?.active ?? 0)} active`);
+        console.log();
+
+        const memActive = summary.memories?.active ?? 0;
+        const memPrefs = summary.memories?.byCategory?.preference ?? 0;
+        const memGoals = summary.memories?.byCategory?.goal ?? 0;
+        const sessTotal = summary.sessions?.total ?? 0;
+        const sessLast = summary.sessions?.last ? summary.sessions.last.split('T')[0] : 'never';
+        console.log(`  ${c.purple.bold('Memory Brain')}`);
+        console.log(`     ${c.label('Memories:')}   ${c.value(memActive)} active (${memPrefs} preferences, ${memGoals} goals)`);
+        console.log(`     ${c.label('Sessions:')}   ${c.value(sessTotal)} total, last: ${sessLast}`);
 
         await checkForUpdate();
         console.log(`\n${divider()}`);

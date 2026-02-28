@@ -1,4 +1,6 @@
-export type NodeType = 'error' | 'solution' | 'code_module' | 'rule' | 'antipattern' | 'project' | 'insight';
+export type NodeType =
+  | 'error' | 'solution' | 'code_module' | 'rule' | 'antipattern' | 'project' | 'insight'
+  | 'memory' | 'session' | 'decision' | 'changelog_entry' | 'task' | 'doc';
 
 export type SynapseType =
   | 'solves'
@@ -11,7 +13,10 @@ export type SynapseType =
   | 'prevents'
   | 'improves'
   | 'generalizes'
-  | 'cross_project';
+  | 'cross_project'
+  | 'remembers'
+  | 'relates_to'
+  | 'informs';
 
 export interface SynapseRecord {
   id: number;

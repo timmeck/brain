@@ -19,6 +19,12 @@ import { CodeModuleRepository } from './db/repositories/code-module.repository.j
 import { SynapseRepository } from './db/repositories/synapse.repository.js';
 import { NotificationRepository } from './db/repositories/notification.repository.js';
 import { InsightRepository } from './db/repositories/insight.repository.js';
+import { MemoryRepository } from './db/repositories/memory.repository.js';
+import { SessionRepository } from './db/repositories/session.repository.js';
+import { DecisionRepository } from './db/repositories/decision.repository.js';
+import { ChangelogRepository } from './db/repositories/changelog.repository.js';
+import { TaskRepository } from './db/repositories/task.repository.js';
+import { DocRepository } from './db/repositories/doc.repository.js';
 
 // Services
 import { ErrorService } from './services/error.service.js';
@@ -31,6 +37,11 @@ import { ResearchService } from './services/research.service.js';
 import { NotificationService } from './services/notification.service.js';
 import { AnalyticsService } from './services/analytics.service.js';
 import { GitService } from './services/git.service.js';
+import { MemoryService } from './services/memory.service.js';
+import { DecisionService } from './services/decision.service.js';
+import { ChangelogService } from './services/changelog.service.js';
+import { TaskService } from './services/task.service.js';
+import { DocService } from './services/doc.service.js';
 
 // Synapses
 import { SynapseManager } from './synapses/synapse-manager.js';
@@ -102,11 +113,23 @@ export class BrainCore {
     const synapseRepo = new SynapseRepository(this.db);
     const notificationRepo = new NotificationRepository(this.db);
     const insightRepo = new InsightRepository(this.db);
+    const memoryRepo = new MemoryRepository(this.db);
+    const sessionRepo = new SessionRepository(this.db);
+    const decisionRepo = new DecisionRepository(this.db);
+    const changelogRepo = new ChangelogRepository(this.db);
+    const taskRepo = new TaskRepository(this.db);
+    const docRepo = new DocRepository(this.db);
 
     // 6. Synapse Manager
     const synapseManager = new SynapseManager(synapseRepo, config.synapses);
 
     // 7. Services
+    const memoryService = new MemoryService(memoryRepo, sessionRepo, projectRepo, synapseManager);
+    const decisionService = new DecisionService(decisionRepo, projectRepo, synapseManager);
+    const changelogService = new ChangelogService(changelogRepo, projectRepo, synapseManager);
+    const taskService = new TaskService(taskRepo, memoryRepo, decisionRepo, changelogRepo, projectRepo, synapseManager);
+    const docService = new DocService(docRepo, projectRepo, decisionRepo, changelogRepo, taskRepo, synapseManager);
+
     const services: Services = {
       error: new ErrorService(errorRepo, projectRepo, synapseManager, config.matching),
       solution: new SolutionService(solutionRepo, synapseManager),
@@ -122,7 +145,15 @@ export class BrainCore {
         synapseManager,
       ),
       git: new GitService(this.db!, synapseManager),
+      memory: memoryService,
+      decision: decisionService,
+      changelog: changelogService,
+      task: taskService,
+      doc: docService,
     };
+
+    // Wire memory repos into analytics for stats
+    services.analytics.setMemoryRepos(memoryRepo, sessionRepo);
 
     // 8. Embedding Engine (local vector search)
     if (config.embeddings.enabled) {
@@ -131,6 +162,7 @@ export class BrainCore {
       // Wire embedding engine into services for hybrid search
       services.error.setEmbeddingEngine(this.embeddingEngine);
       services.code.setEmbeddingEngine(this.embeddingEngine);
+      services.memory.setEmbeddingEngine(this.embeddingEngine);
       logger.info('Embedding engine started (model will load in background)');
     }
 
@@ -321,6 +353,43 @@ export class BrainCore {
     bus.on('insight:created', ({ insightId, type }) => {
       getLogger().info(`New insight #${insightId} (${type})`);
       notifier?.notifyPeer('marketing-brain', 'insight:created', { insightId, type });
+    });
+
+    // Memory → Project synapse
+    bus.on('memory:created', ({ memoryId, projectId }) => {
+      if (projectId) {
+        synapseManager.strengthen(
+          { type: 'memory', id: memoryId },
+          { type: 'project', id: projectId },
+          'co_occurs',
+        );
+      }
+    });
+
+    // Session → Project synapse
+    bus.on('session:ended', ({ sessionId }) => {
+      getLogger().info(`Session #${sessionId} ended`);
+    });
+
+    // Decision → Project synapse
+    bus.on('decision:recorded', ({ decisionId, projectId }) => {
+      if (projectId) {
+        synapseManager.strengthen(
+          { type: 'decision', id: decisionId },
+          { type: 'project', id: projectId },
+          'co_occurs',
+        );
+      }
+    });
+
+    // Task created → log
+    bus.on('task:created', ({ taskId }) => {
+      getLogger().info(`Task #${taskId} created`);
+    });
+
+    // Task completed → log
+    bus.on('task:completed', ({ taskId }) => {
+      getLogger().info(`Task #${taskId} completed`);
     });
   }
 }

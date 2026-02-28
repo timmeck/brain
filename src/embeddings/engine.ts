@@ -109,9 +109,14 @@ export class EmbeddingEngine {
   }
 
   /** Compute and store embeddings for entries that don't have them yet */
-  async sweep(): Promise<{ errors: number; modules: number }> {
+  async sweep(): Promise<{ errors: number; modules: number; memories: number; sessions: number; decisions: number; tasks: number; docs: number }> {
     let errorsProcessed = 0;
     let modulesProcessed = 0;
+    let memoriesProcessed = 0;
+    let sessionsProcessed = 0;
+    let decisionsProcessed = 0;
+    let tasksProcessed = 0;
+    let docsProcessed = 0;
 
     // Process errors without embeddings
     const pendingErrors = this.db.prepare(
@@ -155,11 +160,114 @@ export class EmbeddingEngine {
       }
     }
 
-    if (errorsProcessed > 0 || modulesProcessed > 0) {
-      this.logger.info(`Embedding sweep: ${errorsProcessed} errors, ${modulesProcessed} modules processed`);
+    // Process memories without embeddings
+    const pendingMemories = this.db.prepare(
+      'SELECT id, category, key, content FROM memories WHERE embedding IS NULL AND active = 1 ORDER BY id DESC LIMIT ?'
+    ).all(this.config.batchSize) as Array<{ id: number; category: string; key: string | null; content: string }>;
+
+    if (pendingMemories.length > 0) {
+      const texts = pendingMemories.map(m =>
+        [m.category, m.key, m.content].filter(Boolean).join(' ')
+      );
+      const embeddings = await this.embedBatch(texts);
+      const updateStmt = this.db.prepare('UPDATE memories SET embedding = ? WHERE id = ?');
+      for (let i = 0; i < pendingMemories.length; i++) {
+        const emb = embeddings[i];
+        if (emb) {
+          updateStmt.run(EmbeddingEngine.serialize(emb), pendingMemories[i]!.id);
+          memoriesProcessed++;
+        }
+      }
     }
 
-    return { errors: errorsProcessed, modules: modulesProcessed };
+    // Process sessions without embeddings
+    const pendingSessions = this.db.prepare(
+      'SELECT id, summary, goals FROM sessions WHERE embedding IS NULL AND summary IS NOT NULL ORDER BY id DESC LIMIT ?'
+    ).all(this.config.batchSize) as Array<{ id: number; summary: string; goals: string | null }>;
+
+    if (pendingSessions.length > 0) {
+      const texts = pendingSessions.map(s =>
+        [s.summary, s.goals].filter(Boolean).join(' ')
+      );
+      const embeddings = await this.embedBatch(texts);
+      const updateStmt = this.db.prepare('UPDATE sessions SET embedding = ? WHERE id = ?');
+      for (let i = 0; i < pendingSessions.length; i++) {
+        const emb = embeddings[i];
+        if (emb) {
+          updateStmt.run(EmbeddingEngine.serialize(emb), pendingSessions[i]!.id);
+          sessionsProcessed++;
+        }
+      }
+    }
+
+    // Process decisions without embeddings
+    const pendingDecisions = this.db.prepare(
+      'SELECT id, title, description, alternatives FROM decisions WHERE embedding IS NULL ORDER BY id DESC LIMIT ?'
+    ).all(this.config.batchSize) as Array<{ id: number; title: string; description: string; alternatives: string | null }>;
+
+    if (pendingDecisions.length > 0) {
+      const texts = pendingDecisions.map(d =>
+        [d.title, d.description, d.alternatives].filter(Boolean).join(' ')
+      );
+      const embeddings = await this.embedBatch(texts);
+      const updateStmt = this.db.prepare('UPDATE decisions SET embedding = ? WHERE id = ?');
+      for (let i = 0; i < pendingDecisions.length; i++) {
+        const emb = embeddings[i];
+        if (emb) {
+          updateStmt.run(EmbeddingEngine.serialize(emb), pendingDecisions[i]!.id);
+          decisionsProcessed++;
+        }
+      }
+    }
+
+    // Process tasks without embeddings
+    const pendingTasks = this.db.prepare(
+      'SELECT id, title, description, notes FROM tasks WHERE embedding IS NULL ORDER BY id DESC LIMIT ?'
+    ).all(this.config.batchSize) as Array<{ id: number; title: string; description: string | null; notes: string | null }>;
+
+    if (pendingTasks.length > 0) {
+      const texts = pendingTasks.map(t =>
+        [t.title, t.description, t.notes].filter(Boolean).join(' ')
+      );
+      const embeddings = await this.embedBatch(texts);
+      const updateStmt = this.db.prepare('UPDATE tasks SET embedding = ? WHERE id = ?');
+      for (let i = 0; i < pendingTasks.length; i++) {
+        const emb = embeddings[i];
+        if (emb) {
+          updateStmt.run(EmbeddingEngine.serialize(emb), pendingTasks[i]!.id);
+          tasksProcessed++;
+        }
+      }
+    }
+
+    // Process project docs without embeddings
+    const pendingDocs = this.db.prepare(
+      'SELECT id, file_path, content FROM project_docs WHERE embedding IS NULL ORDER BY id DESC LIMIT ?'
+    ).all(this.config.batchSize) as Array<{ id: number; file_path: string; content: string }>;
+
+    if (pendingDocs.length > 0) {
+      const texts = pendingDocs.map(d =>
+        // Truncate content for embedding (max ~500 chars)
+        `${d.file_path} ${d.content.slice(0, 500)}`
+      );
+      const embeddings = await this.embedBatch(texts);
+      const updateStmt = this.db.prepare('UPDATE project_docs SET embedding = ? WHERE id = ?');
+      for (let i = 0; i < pendingDocs.length; i++) {
+        const emb = embeddings[i];
+        if (emb) {
+          updateStmt.run(EmbeddingEngine.serialize(emb), pendingDocs[i]!.id);
+          docsProcessed++;
+        }
+      }
+    }
+
+    const totalProcessed = errorsProcessed + modulesProcessed + memoriesProcessed +
+      sessionsProcessed + decisionsProcessed + tasksProcessed + docsProcessed;
+    if (totalProcessed > 0) {
+      this.logger.info(`Embedding sweep: ${errorsProcessed} errors, ${modulesProcessed} modules, ${memoriesProcessed} memories, ${sessionsProcessed} sessions, ${decisionsProcessed} decisions, ${tasksProcessed} tasks, ${docsProcessed} docs`);
+    }
+
+    return { errors: errorsProcessed, modules: modulesProcessed, memories: memoriesProcessed, sessions: sessionsProcessed, decisions: decisionsProcessed, tasks: tasksProcessed, docs: docsProcessed };
   }
 
   /** Load vector scores for error matching (sync - reads pre-computed embeddings from DB) */

@@ -11,6 +11,11 @@ import type { ResearchService } from '../services/research.service.js';
 import type { NotificationService } from '../services/notification.service.js';
 import type { AnalyticsService } from '../services/analytics.service.js';
 import type { GitService } from '../services/git.service.js';
+import type { MemoryService } from '../services/memory.service.js';
+import type { DecisionService } from '../services/decision.service.js';
+import type { ChangelogService } from '../services/changelog.service.js';
+import type { TaskService } from '../services/task.service.js';
+import type { DocService } from '../services/doc.service.js';
 import type { LearningEngine, LearningCycleResult } from '../learning/learning-engine.js';
 import type { CrossBrainClient } from '@timmeck/brain-core';
 
@@ -25,6 +30,11 @@ export interface Services {
   notification: NotificationService;
   analytics: AnalyticsService;
   git: GitService;
+  memory: MemoryService;
+  decision: DecisionService;
+  changelog: ChangelogService;
+  task: TaskService;
+  doc: DocService;
   learning?: LearningEngine;
   crossBrain?: CrossBrainClient;
 }
@@ -152,10 +162,52 @@ export class IpcRouter {
         return result;
       }],
 
+      // Memory
+      ['memory.remember',         (params) => s.memory.remember(p(params))],
+      ['memory.recall',           (params) => s.memory.recall(p(params))],
+      ['memory.forget',           (params) => s.memory.forget(p(params).memoryId ?? p(params).memory_id)],
+      ['memory.preferences',      (params) => s.memory.getPreferences(p(params)?.projectId)],
+      ['memory.decisions',        (params) => s.memory.getDecisions(p(params)?.projectId)],
+      ['memory.goals',            (params) => s.memory.getGoals(p(params)?.projectId)],
+      ['memory.lessons',          (params) => s.memory.getLessons(p(params)?.projectId)],
+      ['memory.stats',            () => s.memory.getStats()],
+
+      // Sessions
+      ['session.start',           (params) => s.memory.startSession(p(params))],
+      ['session.end',             (params) => s.memory.endSession(p(params))],
+      ['session.current',         (params) => s.memory.getCurrentSession(p(params).sessionId ?? p(params).session_id)],
+      ['session.history',         (params) => s.memory.getSessionHistory(p(params)?.projectId, p(params)?.limit)],
+
+      // Decisions
+      ['decision.record',         (params) => s.decision.recordDecision(p(params))],
+      ['decision.query',          (params) => s.decision.queryDecisions(p(params))],
+      ['decision.get',            (params) => s.decision.getById(p(params).id)],
+      ['decision.supersede',      (params) => s.decision.supersedeDecision(p(params).oldId ?? p(params).old_id, p(params).newId ?? p(params).new_id)],
+
+      // Changelog
+      ['changelog.record',        (params) => s.changelog.recordChange(p(params))],
+      ['changelog.query',         (params) => s.changelog.queryChanges(p(params))],
+      ['changelog.get',           (params) => s.changelog.getById(p(params).id)],
+      ['changelog.fileHistory',   (params) => s.changelog.getFileHistory(p(params).filePath ?? p(params).file_path, p(params)?.projectId)],
+
+      // Tasks
+      ['task.add',                (params) => s.task.addTask(p(params))],
+      ['task.update',             (params) => s.task.updateTask(p(params).id, p(params))],
+      ['task.list',               (params) => s.task.listTasks(p(params))],
+      ['task.get',                (params) => s.task.getById(p(params).id)],
+      ['task.context',            (params) => s.task.getTaskContext(p(params).id)],
+      ['task.search',             (params) => s.task.searchTasks(p(params).query, p(params)?.limit)],
+
+      // Docs
+      ['doc.index',               (params) => s.doc.indexProject(p(params))],
+      ['doc.query',               (params) => s.doc.queryDocs(p(params))],
+      ['doc.projectContext',      (params) => s.doc.getProjectContext(p(params).projectId ?? p(params).project_id)],
+      ['doc.get',                 (params) => s.doc.getById(p(params).id)],
+
       // Status (cross-brain)
       ['status',                  () => ({
         name: 'brain',
-        version: '2.0.0',
+        version: '2.2.0',
         uptime: Math.floor(process.uptime()),
         pid: process.pid,
         methods: this.listMethods().length,

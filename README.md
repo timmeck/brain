@@ -6,7 +6,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/timmeck/brain)](https://github.com/timmeck/brain)
 [![Smithery](https://smithery.ai/badge/@timmeck/brain)](https://smithery.ai/server/@timmeck/brain)
 
-**Adaptive Error Memory & Code Intelligence MCP Server for Claude Code**
+**Adaptive Error Memory, Code Intelligence & Persistent Context MCP Server for Claude Code**
 
 <!-- TODO: Replace with actual recording once setup wizard is recorded -->
 <!-- ![Demo](assets/demo.gif) -->
@@ -79,8 +79,15 @@ Brain: "⚠ Warning: This code matches antipattern #7 — missing connection
 
 - **Error Memory** — Track errors, match against known solutions with hybrid search (TF-IDF + vector + synapse boost)
 - **Code Intelligence** — Register and discover reusable code modules across all projects
+- **Persistent Memory** — Remember preferences, decisions, context, facts, goals, and lessons across sessions (new in v2.2)
+- **Session Tracking** — Auto-tracks conversation sessions with goals, summaries, and outcomes (new in v2.2)
+- **Decision History** — Record architecture/design decisions with alternatives and rationale (new in v2.2)
+- **Semantic Changelog** — Track what changed, why, and how it connects to errors and decisions (new in v2.2)
+- **Task/Goal Tracking** — Manage tasks with priorities, subtasks, and full context aggregation (new in v2.2)
+- **Project Doc Index** — Auto-index README, CLAUDE.md, package.json, tsconfig.json for instant project context (new in v2.2)
 - **Hebbian Synapse Network** — Weighted graph where connections strengthen with use ("neurons that fire together wire together")
 - **Auto Error Detection** — PostToolUse hook catches errors in real-time, no manual reporting needed
+- **Auto Context Capture** — Hooks auto-capture significant commands as context memories (new in v2.2)
 - **Cross-Project Learning** — Solutions from project A help solve errors in project B
 - **Proactive Prevention** — Warns before errors occur when code matches known antipatterns
 - **Semantic Search** — Local all-MiniLM-L6-v2 embeddings (23MB, no cloud required) for vector similarity
@@ -111,19 +118,19 @@ Brain: "⚠ Warning: This code matches antipattern #7 — missing connection
          |  (Daemon / Services) |
          +----------+-----------+
                     |
-    +-------+-------+--------+--------+
-    |       |       |        |        |
-    v       v       v        v        v
-+---+--+ +--+---+ +-+-----+ +-+----+ +-+--------+
-|Error | |Code  | |Synapse| |Git   | |Embedding |
-|Memory| |Brain | |Network| |Intel | |Engine    |
-+---+--+ +--+---+ +-+-----+ +-+----+ +-+--------+
-    |       |       |        |        |
-    v       v       v        v        v
-+---+--+ +--+---+ +-+-----+ +-+----+ +-+--------+
-|Learn | |Module| |Hebbian| |Commit| |Vector    |
-|Engine| |Score | |Learn  | |Track | |Search    |
-+------+ +------+ +-------+ +------+ +----------+
+    +-------+-------+--------+--------+--------+
+    |       |       |        |        |        |
+    v       v       v        v        v        v
++---+--+ +--+---+ +-+-----+ +-+----+ +-+----+ +-+--------+
+|Error | |Code  | |Synapse| |Git   | |Memory| |Embedding |
+|Memory| |Brain | |Network| |Intel | |Brain | |Engine    |
++---+--+ +--+---+ +-+-----+ +-+----+ +-+----+ +-+--------+
+    |       |       |        |        |        |
+    v       v       v        v        v        v
++---+--+ +--+---+ +-+-----+ +-+----+ +-+----+ +-+--------+
+|Learn | |Module| |Hebbian| |Commit| |Tasks | |Vector    |
+|Engine| |Score | |Learn  | |Track | |Docs  | |Search    |
++------+ +------+ +-------+ +------+ +------+ +----------+
                     |
                     v
          +----------+-----------+
@@ -141,12 +148,18 @@ Cross-brain peering via IPC named pipes (\\.\pipe\brain-*, /tmp/brain-*)
 | **Error Memory** | Stores errors with fingerprints, matches new errors against known ones using hybrid search |
 | **Solution Tracker** | Records solutions with success/fail counts, computes Wilson Score confidence |
 | **Code Module Registry** | Indexes code across projects — find reusable modules by language, tags, similarity |
+| **Memory Brain** | Persistent memory for preferences, decisions, context, facts, goals, and lessons (new in v2.2) |
+| **Session Tracker** | Tracks conversation sessions with goals, summaries, and outcomes (new in v2.2) |
+| **Decision History** | Records architecture/design decisions with alternatives and rationale (new in v2.2) |
+| **Semantic Changelog** | Tracks file changes with context: what, why, related errors/decisions (new in v2.2) |
+| **Task Manager** | Task/goal tracking with priorities, subtasks, and full context aggregation (new in v2.2) |
+| **Project Doc Index** | Auto-indexes README, CLAUDE.md, package.json for instant project context (new in v2.2) |
 | **Synapse Network** | Weighted graph connecting all entities. Hebbian rule: "neurons that fire together wire together" |
 | **Learning Engine** | Extracts patterns from error/solution history, generates preventive rules with adaptive thresholds |
 | **Research Engine** | Analyzes trends, detects knowledge gaps, finds cross-project synergies |
 | **Git Intelligence** | Links errors to commits, tracks which changes introduced or fixed bugs |
 | **Embedding Engine** | Local all-MiniLM-L6-v2 model generates 384-dim vectors for semantic search |
-| **REST API** | HTTP API exposing all 40+ Brain methods as RESTful endpoints |
+| **REST API** | HTTP API exposing all 60+ Brain methods as RESTful endpoints |
 | **MCP HTTP Server** | SSE transport enabling non-Claude MCP clients (Cursor, Windsurf, etc.) |
 
 ## MCP Tools
@@ -155,19 +168,43 @@ These tools are available to Claude Code (and other MCP clients) when Brain is c
 
 | Tool | Description |
 |------|-------------|
+| **Error Brain** | |
 | `brain_report_error` | Report an error; stores and matches against known errors (hybrid search) |
 | `brain_query_error` | Search for similar errors and solutions |
 | `brain_report_solution` | Report a working solution; Brain learns from it |
 | `brain_report_attempt` | Report a failed attempt; Brain learns what doesn't work |
+| **Code Brain** | |
 | `brain_find_reusable_code` | Search for reusable code modules |
 | `brain_register_code` | Register a code module as reusable |
 | `brain_check_code_similarity` | Check if similar code exists before writing new code |
+| **Memory Brain** (new in v2.2) | |
+| `brain_remember` | Store a memory (preference, decision, context, fact, goal, lesson) |
+| `brain_recall` | Search memories by natural language query |
+| `brain_session_start` | Start a session to track what happens in a conversation |
+| `brain_session_end` | End session with summary and outcome |
+| `brain_session_history` | Recall past sessions ("what was I working on?") |
+| **Decision & Changelog** (new in v2.2) | |
+| `brain_record_decision` | Record architecture/design decision with alternatives |
+| `brain_query_decisions` | Search past decisions ("why did we choose X?") |
+| `brain_record_change` | Record semantic file change (what + why) |
+| `brain_query_changes` | Search changelog ("what changed in file X?") |
+| **Task Tracking** (new in v2.2) | |
+| `brain_add_task` | Add a task/goal with priority and tags |
+| `brain_update_task` | Update task status, add notes |
+| `brain_list_tasks` | List tasks by status/project |
+| `brain_task_context` | Full context: task + related memories, decisions, changes |
+| **Project Docs** (new in v2.2) | |
+| `brain_index_project` | Scan and index project documentation |
+| `brain_query_docs` | Search indexed documentation |
+| `brain_project_context` | Full context: docs + tasks + decisions + changes |
+| **Synapse & Research** | |
 | `brain_explore` | Explore knowledge via spreading activation |
 | `brain_connections` | Find how two concepts are connected |
 | `brain_insights` | Get research insights (trends, gaps, synergies) |
 | `brain_rate_insight` | Rate an insight as useful or not useful |
 | `brain_suggest` | Get suggestions on what to build or improve |
-| `brain_status` | Current Brain stats |
+| **Status & Ecosystem** | |
+| `brain_status` | Current Brain stats (now includes memory and session counts) |
 | `brain_notifications` | Get pending notifications |
 | `brain_ecosystem_status` | Get status of all brains in the ecosystem |
 | `brain_query_peer` | Query another brain in the ecosystem (method + params) |
@@ -249,7 +286,7 @@ POST   /api/v1/git/link-error            # Link error to commit
 
 # Meta
 GET    /api/v1/health                    # API health check
-GET    /api/v1/methods                   # List all 40+ available methods
+GET    /api/v1/methods                   # List all 60+ available methods
 ```
 
 ### Authentication
@@ -300,19 +337,32 @@ Make sure the Brain daemon is running (`brain start`).
 9. **Embeddings Computed** — Background sweep generates vector embeddings for semantic search
 10. **Next Time** — When a similar error appears, Brain instantly suggests the proven solution — even from other projects
 
+## How It Remembers (v2.2)
+
+Brain now maintains **persistent context** across sessions:
+
+1. **Session Auto-Start** — PreToolUse hook auto-starts a session per working directory
+2. **Context Captured** — Significant commands (npm, git, test, build, deploy) are auto-remembered as context
+3. **Preferences Stored** — User preferences (test framework, code style, tools) are stored with key-based upsert
+4. **Decisions Recorded** — Architecture decisions with alternatives and rationale for "why did we choose X?"
+5. **Changes Tracked** — Semantic changelog links file changes to errors and decisions
+6. **Tasks Managed** — Goals and tasks with priorities, subtasks, and full context aggregation
+7. **Docs Indexed** — README, CLAUDE.md, package.json indexed for instant project context
+8. **Everything Connected** — All new entities join the synapse network, enabling cross-entity discovery
+
 ## Brain Ecosystem
 
 Brain is part of the **Brain Ecosystem** — a family of standalone MCP servers that give Claude Code persistent, self-learning memory.
 
 | Brain | Purpose | Ports |
 |-------|---------|-------|
-| **Brain** | Error memory & code intelligence | **7777** / 7778 |
+| **Brain** | Error memory, code intelligence & persistent context | **7777** / 7778 |
 | [Trading Brain](https://github.com/timmeck/trading-brain) | Adaptive trading intelligence | 7779 / 7780 |
 | [Marketing Brain](https://github.com/timmeck/marketing-brain) | Content strategy & engagement | 7781 / 7782 |
-| [Brain Core](https://github.com/timmeck/brain-core) v1.5.0 | Shared infrastructure (IPC, MCP, REST, CLI, math, synapses) | — |
+| [Brain Core](https://github.com/timmeck/brain-core) v1.6.0 | Shared infrastructure (IPC, MCP, REST, CLI, math, synapses, memory) | — |
 | [Brain Hub](https://timmeck.github.io/brain-hub/) | Ecosystem landing page | — |
 
-Each brain is **fully standalone** — [Brain Core](https://www.npmjs.com/package/@timmeck/brain-core) provides shared infrastructure (IPC, MCP, REST API, CLI, math, synapse algorithms) used by all brains, eliminating ~2,800 lines of duplicated code.
+Each brain is **fully standalone** — [Brain Core](https://www.npmjs.com/package/@timmeck/brain-core) provides shared infrastructure (IPC, MCP, REST API, CLI, math, synapse algorithms, memory types) used by all brains, eliminating ~2,800 lines of duplicated code.
 
 ### Cross-Brain Communication
 
@@ -327,7 +377,7 @@ Brains discover and query each other at runtime via IPC named pipes. Use `brain 
 - **Commander** — CLI framework
 - **Chalk** — Colored terminal output
 - **Winston** — Structured logging
-- **Vitest** — Testing (189 tests)
+- **Vitest** — Testing
 
 ## License
 

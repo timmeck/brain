@@ -315,6 +315,374 @@ function registerToolsWithCaller(server: McpServer, call: BrainCall): void {
     },
   );
 
+  // === Memory Tools ===
+
+  server.tool(
+    'brain_remember',
+    'Store a memory. Use for user preferences, decisions, context, facts, goals, or lessons. Key-based memories auto-supersede old values.',
+    {
+      content: z.string().describe('The memory content'),
+      category: z.enum(['preference', 'decision', 'context', 'fact', 'goal', 'lesson']).describe('Memory category'),
+      key: z.string().optional().describe('Unique key for upsert, e.g. "preferred_test_framework"'),
+      importance: z.number().min(1).max(10).optional().describe('1-10, default 5'),
+      tags: z.array(z.string()).optional().describe('Tags for organization'),
+      project: z.string().optional().describe('Project name'),
+    },
+    async (params) => {
+      const result: AnyResult = await call('memory.remember', {
+        content: params.content,
+        category: params.category,
+        key: params.key,
+        importance: params.importance ?? 5,
+        tags: params.tags,
+        project: params.project,
+      });
+      let response = `Memory #${result.memoryId} stored (${params.category}).`;
+      if (result.superseded) {
+        response += ` Superseded old memory #${result.superseded}.`;
+      }
+      return textResult(response);
+    },
+  );
+
+  server.tool(
+    'brain_recall',
+    'Search memories. Use to recall preferences, past decisions, goals, lessons, or any stored context.',
+    {
+      query: z.string().describe('Natural language search'),
+      category: z.enum(['preference', 'decision', 'context', 'fact', 'goal', 'lesson']).optional(),
+      project: z.string().optional().describe('Project name'),
+      limit: z.number().optional().describe('Max results, default 10'),
+    },
+    async (params) => {
+      const results: AnyResult = await call('memory.recall', {
+        query: params.query,
+        category: params.category,
+        limit: params.limit ?? 10,
+      });
+      if (!results?.length) return textResult('No matching memories found.');
+      const lines = results.map((m: AnyResult) =>
+        `#${m.id} [${m.category}]${m.key ? ` (${m.key})` : ''} ${m.content.slice(0, 150)}${m.importance > 5 ? ` (importance: ${m.importance})` : ''}`
+      );
+      return textResult(`Found ${results.length} memories:\n${lines.join('\n')}`);
+    },
+  );
+
+  server.tool(
+    'brain_session_start',
+    'Start a Brain session to track what happens in this conversation.',
+    {
+      goals: z.array(z.string()).optional().describe('Session goals'),
+      project: z.string().optional().describe('Project name'),
+    },
+    async (params) => {
+      const result: AnyResult = await call('session.start', {
+        goals: params.goals,
+        project: params.project,
+      });
+      return textResult(`Session #${result.sessionId} started (${result.dbSessionId}).`);
+    },
+  );
+
+  server.tool(
+    'brain_session_end',
+    'End the current session with a summary of what was accomplished.',
+    {
+      session_id: z.number().describe('The session ID to end'),
+      summary: z.string().describe('Summary of what was accomplished'),
+      outcome: z.enum(['completed', 'paused', 'abandoned']).optional(),
+    },
+    async (params) => {
+      await call('session.end', {
+        sessionId: params.session_id,
+        summary: params.summary,
+        outcome: params.outcome ?? 'completed',
+      });
+      return textResult(`Session #${params.session_id} ended (${params.outcome ?? 'completed'}).`);
+    },
+  );
+
+  server.tool(
+    'brain_session_history',
+    'Recall past sessions. Use when user asks "what was I working on?"',
+    {
+      project: z.string().optional().describe('Project name'),
+      limit: z.number().optional().describe('Max results, default 10'),
+    },
+    async (params) => {
+      const results: AnyResult = await call('session.history', {
+        limit: params.limit ?? 10,
+      });
+      if (!results?.length) return textResult('No sessions found.');
+      const lines = results.map((s: AnyResult) => {
+        const goals = s.goals ? JSON.parse(s.goals) : [];
+        return `#${s.id} [${s.outcome ?? 'active'}] ${s.started_at}${goals.length ? ` — Goals: ${goals.join(', ')}` : ''}${s.summary ? `\n  Summary: ${s.summary.slice(0, 150)}` : ''}`;
+      });
+      return textResult(`${results.length} sessions:\n${lines.join('\n')}`);
+    },
+  );
+
+  // === Decision & Changelog Tools ===
+
+  server.tool(
+    'brain_record_decision',
+    'Record an architecture/design decision with alternatives and rationale.',
+    {
+      title: z.string().describe('Decision title, e.g. "Use Vitest over Jest"'),
+      description: z.string().describe('Full description and rationale'),
+      alternatives: z.array(z.object({
+        option: z.string(),
+        pros: z.array(z.string()).optional(),
+        cons: z.array(z.string()).optional(),
+        rejected_reason: z.string().optional(),
+      })).optional().describe('Alternatives considered'),
+      category: z.enum(['architecture', 'technology', 'pattern', 'convention', 'dependency', 'process', 'other']).optional(),
+      tags: z.array(z.string()).optional(),
+      project: z.string().optional(),
+    },
+    async (params) => {
+      const result: AnyResult = await call('decision.record', {
+        title: params.title,
+        description: params.description,
+        alternatives: params.alternatives,
+        category: params.category ?? 'architecture',
+        tags: params.tags,
+        project: params.project,
+      });
+      return textResult(`Decision #${result.decisionId} recorded: ${params.title}`);
+    },
+  );
+
+  server.tool(
+    'brain_query_decisions',
+    'Search past decisions. Use when asked "why did we choose X?" or "what was decided about Y?"',
+    {
+      query: z.string().optional().describe('Natural language search'),
+      category: z.enum(['architecture', 'technology', 'pattern', 'convention', 'dependency', 'process', 'other']).optional(),
+      project: z.string().optional(),
+      limit: z.number().optional(),
+    },
+    async (params) => {
+      const results: AnyResult = await call('decision.query', {
+        query: params.query,
+        category: params.category,
+        limit: params.limit ?? 10,
+      });
+      if (!results?.length) return textResult('No matching decisions found.');
+      const lines = results.map((d: AnyResult) =>
+        `#${d.id} [${d.category}] ${d.title}: ${d.description.slice(0, 150)}`
+      );
+      return textResult(`Found ${results.length} decisions:\n${lines.join('\n')}`);
+    },
+  );
+
+  server.tool(
+    'brain_record_change',
+    'Record a semantic file change (what changed and why).',
+    {
+      file_path: z.string().describe('File path that changed'),
+      change_type: z.enum(['created', 'modified', 'deleted', 'renamed', 'refactored']).describe('Type of change'),
+      summary: z.string().describe('What changed'),
+      reason: z.string().optional().describe('Why it changed'),
+      diff_snippet: z.string().optional().describe('Key part of the diff'),
+      related_error_id: z.number().optional().describe('Error this change fixes'),
+      related_decision_id: z.number().optional().describe('Decision this implements'),
+      commit_hash: z.string().optional(),
+      project: z.string().optional(),
+    },
+    async (params) => {
+      const result: AnyResult = await call('changelog.record', {
+        filePath: params.file_path,
+        changeType: params.change_type,
+        summary: params.summary,
+        reason: params.reason,
+        diffSnippet: params.diff_snippet,
+        relatedErrorId: params.related_error_id,
+        relatedDecisionId: params.related_decision_id,
+        commitHash: params.commit_hash,
+        project: params.project,
+      });
+      return textResult(`Change #${result.changeId} recorded: ${params.change_type} ${params.file_path}`);
+    },
+  );
+
+  server.tool(
+    'brain_query_changes',
+    'Search semantic changelog. Use for "what changed in file X?" or "what did we change recently?"',
+    {
+      query: z.string().optional().describe('Natural language search'),
+      file_path: z.string().optional().describe('Filter by file path'),
+      project: z.string().optional(),
+      limit: z.number().optional(),
+    },
+    async (params) => {
+      const results: AnyResult = await call('changelog.query', {
+        query: params.query,
+        filePath: params.file_path,
+        limit: params.limit ?? 20,
+      });
+      if (!results?.length) return textResult('No matching changes found.');
+      const lines = results.map((c: AnyResult) =>
+        `#${c.id} [${c.change_type}] ${c.file_path}: ${c.summary.slice(0, 120)}`
+      );
+      return textResult(`Found ${results.length} changes:\n${lines.join('\n')}`);
+    },
+  );
+
+  // === Task/Goal Tracking Tools ===
+
+  server.tool(
+    'brain_add_task',
+    'Add a task or goal. Use for tracking work items, todos, and objectives.',
+    {
+      title: z.string().describe('Task title'),
+      description: z.string().optional().describe('Detailed description'),
+      priority: z.number().min(1).max(10).optional().describe('1-10, default 5'),
+      due_date: z.string().optional().describe('Due date (ISO format)'),
+      tags: z.array(z.string()).optional(),
+      parent_task_id: z.number().optional().describe('Parent task ID for subtasks'),
+      blocked_by: z.array(z.number()).optional().describe('Task IDs that block this one'),
+      project: z.string().optional(),
+    },
+    async (params) => {
+      const result: AnyResult = await call('task.add', {
+        title: params.title,
+        description: params.description,
+        priority: params.priority ?? 5,
+        dueDate: params.due_date,
+        tags: params.tags,
+        parentTaskId: params.parent_task_id,
+        blockedBy: params.blocked_by,
+        project: params.project,
+      });
+      return textResult(`Task #${result.taskId} created: ${params.title}`);
+    },
+  );
+
+  server.tool(
+    'brain_update_task',
+    'Update a task: change status, add notes, set priority.',
+    {
+      id: z.number().describe('Task ID'),
+      status: z.enum(['pending', 'in_progress', 'completed', 'blocked', 'cancelled']).optional(),
+      note: z.string().optional().describe('Add a note to the task'),
+      priority: z.number().min(1).max(10).optional(),
+      title: z.string().optional(),
+    },
+    async (params) => {
+      const result: AnyResult = await call('task.update', {
+        id: params.id,
+        status: params.status,
+        note: params.note,
+        priority: params.priority,
+        title: params.title,
+      });
+      if (!result) return textResult(`Task #${params.id} not found.`);
+      return textResult(`Task #${params.id} updated: ${result.title} [${result.status}]`);
+    },
+  );
+
+  server.tool(
+    'brain_list_tasks',
+    'List tasks. Filter by status, project, or parent task.',
+    {
+      status: z.enum(['pending', 'in_progress', 'completed', 'blocked', 'cancelled']).optional(),
+      project: z.string().optional(),
+      limit: z.number().optional(),
+    },
+    async (params) => {
+      const results: AnyResult = await call('task.list', {
+        status: params.status,
+        limit: params.limit ?? 20,
+      });
+      if (!results?.length) return textResult('No tasks found.');
+      const lines = results.map((t: AnyResult) =>
+        `#${t.id} [${t.status}] P${t.priority} ${t.title}${t.due_date ? ` (due: ${t.due_date})` : ''}`
+      );
+      return textResult(`${results.length} tasks:\n${lines.join('\n')}`);
+    },
+  );
+
+  server.tool(
+    'brain_task_context',
+    'Get full context for a task: related memories, decisions, and changes.',
+    {
+      id: z.number().describe('Task ID'),
+    },
+    async (params) => {
+      const result: AnyResult = await call('task.context', { id: params.id });
+      if (!result?.task) return textResult(`Task #${params.id} not found.`);
+      const sections = [
+        `Task: ${result.task.title} [${result.task.status}]`,
+        result.task.description ? `Description: ${result.task.description}` : null,
+        result.subtasks?.length ? `Subtasks: ${result.subtasks.length}` : null,
+        result.memories?.length ? `Related memories: ${result.memories.length}` : null,
+        result.decisions?.length ? `Related decisions: ${result.decisions.length}` : null,
+        result.changes?.length ? `Related changes: ${result.changes.length}` : null,
+      ].filter(Boolean);
+      return textResult(sections.join('\n'));
+    },
+  );
+
+  // === Project Documentation Tools ===
+
+  server.tool(
+    'brain_index_project',
+    'Scan and index project documentation (README, CLAUDE.md, package.json, tsconfig.json).',
+    {
+      project_path: z.string().describe('Absolute path to project root'),
+      project: z.string().optional().describe('Project name'),
+    },
+    async (params) => {
+      const result: AnyResult = await call('doc.index', {
+        projectPath: params.project_path,
+        project: params.project,
+      });
+      return textResult(`Indexed: ${result.indexed} new, ${result.updated} updated docs for project #${result.projectId}.`);
+    },
+  );
+
+  server.tool(
+    'brain_query_docs',
+    'Search indexed project documentation.',
+    {
+      query: z.string().describe('Search query'),
+      project: z.string().optional(),
+      limit: z.number().optional(),
+    },
+    async (params) => {
+      const results: AnyResult = await call('doc.query', {
+        query: params.query,
+        limit: params.limit ?? 10,
+      });
+      if (!results?.length) return textResult('No matching docs found.');
+      const lines = results.map((d: AnyResult) =>
+        `[${d.doc_type}] ${d.file_path} (project #${d.project_id}): ${d.content.slice(0, 100)}...`
+      );
+      return textResult(`Found ${results.length} docs:\n${lines.join('\n')}`);
+    },
+  );
+
+  server.tool(
+    'brain_project_context',
+    'Get full project context: docs, active tasks, recent decisions, and changes.',
+    {
+      project_id: z.number().describe('Project ID'),
+    },
+    async (params) => {
+      const result: AnyResult = await call('doc.projectContext', {
+        projectId: params.project_id,
+      });
+      const sections = [
+        `Docs: ${result.docs?.length ?? 0} indexed`,
+        `Active tasks: ${result.activeTasks?.length ?? 0}`,
+        `Recent decisions: ${result.recentDecisions?.length ?? 0}`,
+        `Recent changes: ${result.recentChanges?.length ?? 0}`,
+      ];
+      return textResult(sections.join('\n'));
+    },
+  );
+
   // === Cross-Brain Ecosystem Tools ===
 
   server.tool(

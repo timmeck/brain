@@ -5,6 +5,8 @@ import type { CodeModuleRepository } from '../db/repositories/code-module.reposi
 import type { RuleRepository } from '../db/repositories/rule.repository.js';
 import type { AntipatternRepository } from '../db/repositories/antipattern.repository.js';
 import type { InsightRepository } from '../db/repositories/insight.repository.js';
+import type { MemoryRepository } from '../db/repositories/memory.repository.js';
+import type { SessionRepository } from '../db/repositories/session.repository.js';
 import type { SynapseManager } from '../synapses/synapse-manager.js';
 import type { NetworkStats } from '../types/synapse.types.js';
 
@@ -15,6 +17,8 @@ export interface ProjectSummary {
   antipatterns: { total: number };
   modules: { total: number };
   insights: { active: number };
+  memories: { active: number; byCategory: Record<string, number> };
+  sessions: { total: number; last?: string };
   healthScore?: number;
 }
 
@@ -30,6 +34,9 @@ export interface NetworkOverview {
 }
 
 export class AnalyticsService {
+  private memoryRepo: MemoryRepository | null = null;
+  private sessionRepo: SessionRepository | null = null;
+
   constructor(
     private errorRepo: ErrorRepository,
     private solutionRepo: SolutionRepository,
@@ -39,6 +46,11 @@ export class AnalyticsService {
     private insightRepo: InsightRepository,
     private synapseManager: SynapseManager,
   ) {}
+
+  setMemoryRepos(memoryRepo: MemoryRepository, sessionRepo: SessionRepository): void {
+    this.memoryRepo = memoryRepo;
+    this.sessionRepo = sessionRepo;
+  }
 
   getSummary(projectId?: number): ProjectSummary {
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
@@ -57,6 +69,12 @@ export class AnalyticsService {
       : this.codeModuleRepo.countAll();
     const insights = this.insightRepo.findActive(projectId);
 
+    // Memory stats
+    const memoryActive = this.memoryRepo?.countActive() ?? 0;
+    const memoryByCategory = this.memoryRepo?.countByCategory() ?? {};
+    const sessionTotal = this.sessionRepo?.countAll() ?? 0;
+    const lastSession = this.sessionRepo?.findLast();
+
     return {
       errors: {
         total: allErrors.length,
@@ -68,6 +86,8 @@ export class AnalyticsService {
       antipatterns: { total: antipatterns.length },
       modules: { total: moduleCount },
       insights: { active: insights.length },
+      memories: { active: memoryActive, byCategory: memoryByCategory },
+      sessions: { total: sessionTotal, last: lastSession?.started_at },
     };
   }
 

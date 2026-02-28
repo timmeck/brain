@@ -9,6 +9,11 @@ import { up as synapsesPhase3 } from './006_synapses_phase3.js';
 import { up as feedbackSchema } from './007_feedback.js';
 import { up as gitIntegration } from './008_git_integration.js';
 import { up as embeddings } from './009_embeddings.js';
+import { up as memorySchema } from './010_memory_schema.js';
+import { up as memoryFts } from './011_memory_fts.js';
+import { up as decisionsChangelog } from './012_decisions_changelog.js';
+import { up as tasks } from './013_tasks.js';
+import { up as projectDocs } from './014_project_docs.js';
 
 interface Migration {
   version: number;
@@ -26,6 +31,11 @@ const migrations: Migration[] = [
   { version: 7, name: '007_feedback', up: feedbackSchema },
   { version: 8, name: '008_git_integration', up: gitIntegration },
   { version: 9, name: '009_embeddings', up: embeddings },
+  { version: 10, name: '010_memory_schema', up: memorySchema },
+  { version: 11, name: '011_memory_fts', up: memoryFts },
+  { version: 12, name: '012_decisions_changelog', up: decisionsChangelog },
+  { version: 13, name: '013_tasks', up: tasks },
+  { version: 14, name: '014_project_docs', up: projectDocs },
 ];
 
 function ensureMigrationsTable(db: Database.Database): void {
